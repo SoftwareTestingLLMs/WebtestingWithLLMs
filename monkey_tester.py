@@ -15,6 +15,8 @@ import time
     help="The URL of the web application to test.",
 )
 def main(url):
+    print(f"Starting the test on URL: {url}")
+
     # Open the web browser and navigate to the app's URL
     browser = webdriver.Chrome()
     browser.get(url)
@@ -23,6 +25,7 @@ def main(url):
     WebDriverWait(browser, 10).until(
         EC.presence_of_element_located((By.TAG_NAME, "body"))
     )
+    print("Web page loaded successfully.")
 
     # Find all buttons and input fields
     buttons = browser.find_elements(By.XPATH, "//button")
@@ -30,22 +33,31 @@ def main(url):
 
     # Create a list of all interactable elements
     elements = buttons + inputs
+    print(f"Found {len(elements)} interactable elements.")
 
     # Start monkey testing
-    for _ in range(100):  # Let's interact with elements 100 times
+    for i in range(100):  # Let's interact with elements 100 times
         element = random.choice(elements)  # Choose a random element
 
         if element.tag_name == "button":
+            print(
+                f"Action {i+1}: Clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
+            )
             element.click()  # If it's a button, click it
         elif element.tag_name == "input":
             # If it's an input field, enter some random text
-            element.send_keys(
-                "".join(random.choices(string.ascii_letters + string.digits, k=5))
+            random_text = "".join(
+                random.choices(string.ascii_letters + string.digits, k=5)
             )
+            print(
+                f"Action {i+1}: Entering text into input field with outerHTML: '{element.get_attribute('outerHTML')}', text: '{random_text}'."
+            )
+            element.send_keys(random_text)
 
-        time.sleep(1)  # Wait a bit between actions for the page to update
+        time.sleep(0.5)  # Wait a bit between actions for the page to update
 
     # Close the driver
+    print("Closing the browser.")
     browser.quit()
 
 
