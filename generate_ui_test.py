@@ -52,17 +52,20 @@ def main(url, base_dir):
 
     click.echo(completion)
     response = completion["choices"][0]["message"]["content"]
-    
 
     # Generate the directory path
     directory_path = generate_directory_path(url, base_dir)
 
-    # Save the generated test to file
+    # Save the generated test and the prompt to files
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
     with open(os.path.join(directory_path, "test.py"), "w") as file:
         file.write(response)
+
+    # Save the task prompt in a separate text file
+    with open("prompt.txt", "w") as prompt_file:
+        prompt_file.write(task)
 
     # Close the web browser
     browser.quit()
