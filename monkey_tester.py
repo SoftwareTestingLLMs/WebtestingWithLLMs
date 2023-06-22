@@ -6,6 +6,9 @@ from selenium.webdriver.support import expected_conditions as EC
 import random
 import string
 import time
+from pathlib import Path
+import os.path
+import urllib.parse
 
 
 @click.command()
@@ -30,6 +33,14 @@ import time
     help="The maximum time to wait (in seconds) for the page to load.",
 )
 def main(url, delay, interactions, load_wait_time):
+    # Check if the given URL is a local file path
+    if os.path.isfile(url):
+        # If it is a local file, convert the file path to a proper URL
+        url = Path(url).as_uri()
+    elif not urllib.parse.urlsplit(url).scheme:
+        # If it's a relative file path, convert it to an absolute path first, then to a proper URL
+        url = Path(os.path.abspath(url)).as_uri()
+
     print(f"Starting the test on URL: {url}")
 
     # Open the web browser and navigate to the app's URL
