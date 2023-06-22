@@ -49,8 +49,13 @@ def main(url, delay, interactions, load_wait_time):
 
     # Start interacting with the page
     for i in range(interactions):
-        # Create the prompt for the GPT model
-        prompt = f"Given the HTML source code: '{browser.page_source}', please provide the next action to take."
+        # Create the prompt for the GPT model with task description
+        prompt = (
+            f"Your task is to test a web application using Python and Selenium. "
+            f"Here is the HTML source code of the page: '{browser.page_source}'. "
+            f"Please generate the next action to interact with this web page. "
+            f"Try to cover as many different features and edge cases as possible."
+        )
 
         # Ask the GPT model for the next action
         response = openai.ChatCompletion.create(
