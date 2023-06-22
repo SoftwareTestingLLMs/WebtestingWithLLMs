@@ -54,6 +54,14 @@ def main(url):
             )
             element.send_keys(random_text)
 
+        # Check for alert and accept it if present
+        try:
+            alert = browser.switch_to.alert
+            print(f"Alert found with message: {alert.text}. Accepting it.")
+            alert.accept()
+        except Exception as e:
+            pass  # no alert, so pass
+
         time.sleep(0.5)  # Wait a bit between actions for the page to update
 
     # Close the driver
