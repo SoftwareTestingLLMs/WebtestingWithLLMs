@@ -19,7 +19,17 @@ import time
     default=0.5,
     help="The time delay (in seconds) between actions on the web application.",
 )
-def main(url, delay):
+@click.option(
+    "--interactions",
+    default=100,
+    help="The number of interactions to perform on the web application.",
+)
+@click.option(
+    "--load-wait-time",
+    default=10,
+    help="The maximum time to wait (in seconds) for the page to load.",
+)
+def main(url, delay, interactions, load_wait_time):
     print(f"Starting the test on URL: {url}")
 
     # Open the web browser and navigate to the app's URL
@@ -27,7 +37,7 @@ def main(url, delay):
     browser.get(url)
 
     # Wait for the elements to load
-    WebDriverWait(browser, 10).until(
+    WebDriverWait(browser, load_wait_time).until(
         EC.presence_of_element_located((By.TAG_NAME, "body"))
     )
     print("Web page loaded successfully.")
@@ -47,7 +57,9 @@ def main(url, delay):
     )
 
     # Start monkey testing
-    for i in range(100):  # Let's interact with elements 100 times
+    for i in range(
+        interactions
+    ):  # Let's interact with elements as per interactions count
         element = random.choice(clickable_elements)  # Choose a random clickable element
 
         if element.tag_name == "button":
