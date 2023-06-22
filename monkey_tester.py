@@ -14,7 +14,12 @@ import time
     default="https://sea-lion-app-q6nwz.ondigitalocean.app/sample1",
     help="The URL of the web application to test.",
 )
-def main(url):
+@click.option(
+    "--delay",
+    default=0.5,
+    help="The time delay (in seconds) between actions on the web application.",
+)
+def main(url, delay):
     print(f"Starting the test on URL: {url}")
 
     # Open the web browser and navigate to the app's URL
@@ -68,7 +73,7 @@ def main(url):
         except Exception as e:
             pass  # no alert, so pass
 
-        time.sleep(0.5)  # Wait a bit between actions for the page to update
+        time.sleep(delay)  # Wait a bit between actions for the page to update
 
     # Close the driver
     print("Closing the browser.")
