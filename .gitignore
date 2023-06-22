@@ -1,4 +1,5 @@
 openai_key.json
+prompt.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
