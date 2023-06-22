@@ -36,7 +36,7 @@ def main(url, base_dir):
     browser.get(url)
 
     task = (
-        f"Your task is to test a web application using python and selenium with the URL {url}. "
+        f"Your task is to test a web application in detail using python and selenium with the URL {url}. Try to test as many features as possible."
         f'Use "browser = webdriver.Chrome() to open the web browser. Use only xpath commands '
         f'like "browser.find_element(By.XPATH, \'//button[text()="Click me!"]\')" to find elements. If there is '
         f"an alert, the script should switch to the alert and dismiss it before proceeding with the next step. "
@@ -50,8 +50,9 @@ def main(url, base_dir):
         model="gpt-4", messages=[{"role": "user", "content": task}]
     )
 
+    click.echo(completion)
     response = completion["choices"][0]["message"]["content"]
-    click.echo(response)
+    
 
     # Generate the directory path
     directory_path = generate_directory_path(url, base_dir)
