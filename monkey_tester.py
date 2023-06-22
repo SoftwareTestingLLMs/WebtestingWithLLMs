@@ -31,13 +31,19 @@ def main(url):
     buttons = browser.find_elements(By.XPATH, "//button")
     inputs = browser.find_elements(By.XPATH, "//input")
 
-    # Create a list of all interactable elements
-    elements = buttons + inputs
-    print(f"Found {len(elements)} interactable elements.")
+    # Create two lists: one for clickable elements and one for readonly inputs
+    clickable_elements = buttons + [
+        input for input in inputs if not input.get_attribute("readonly")
+    ]
+    readonly_inputs = [input for input in inputs if input.get_attribute("readonly")]
+
+    print(
+        f"Found {len(clickable_elements)} clickable elements and {len(readonly_inputs)} readonly inputs."
+    )
 
     # Start monkey testing
     for i in range(100):  # Let's interact with elements 100 times
-        element = random.choice(elements)  # Choose a random element
+        element = random.choice(clickable_elements)  # Choose a random clickable element
 
         if element.tag_name == "button":
             print(
@@ -45,7 +51,7 @@ def main(url):
             )
             element.click()  # If it's a button, click it
         elif element.tag_name == "input":
-            # If it's an input field, enter some random text
+            # If it's an editable input field, enter some random text
             random_text = "".join(
                 random.choices(string.ascii_letters + string.digits, k=5)
             )
