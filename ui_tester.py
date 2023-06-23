@@ -94,14 +94,10 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
     # Start testing
     for i in range(interactions):
+        element = None  # We declare element variable here
         if test_type == "monkey":
-            # Create a list for clickable elements
-            clickable_elements = buttons
-            element = random.choice(clickable_elements)
-            print(
-                f"Action {i+1}: Clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
-            )
-            element.click()
+            # Choose a random button
+            element = random.choice(buttons)
         else:
             past_actions = []
             clickable_elements_data = []
@@ -133,16 +129,19 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 print(
                     f"Action {i+1}: Received action index from GPT-4: '{action_index}'."
                 )
-
-                action_button = buttons[action_index]
-                action_button.click()
-                past_actions.append(action_button.get_attribute("outerHTML"))
+                element = buttons[action_index]
+                past_actions.append(element.get_attribute("outerHTML"))
             else:
                 print(
                     f"Did not find a valid action index in the response from GPT-4: {action_string}"
                 )
                 # handle the missing action index, for example, skip this interaction
                 continue
+
+        print(
+            f"Action {i+1}: Clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
+        )
+        element.click()
 
         # Check for alert and accept it if present
         try:
