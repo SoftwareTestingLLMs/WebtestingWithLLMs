@@ -88,17 +88,16 @@ def main(url, delay, interactions, load_wait_time, test_type):
     filtered_html = filter_html(browser.page_source)
 
     # Start testing
+    past_actions = [] 
     for i in range(interactions):
         # Refresh the list of buttons before each interaction
         buttons = browser.find_elements(By.XPATH, "//button")
-        print(f"Found {len(buttons)} clickable elements (buttons).")
 
-        element = None  # We declare element variable here
+        element = None
         if test_type == "monkey":
             # Choose a random button
             element = random.choice(buttons)
         else:
-            past_actions = []
             clickable_elements_data = []
 
             # Rename loop counter to j to avoid conflict
@@ -131,7 +130,6 @@ def main(url, delay, interactions, load_wait_time, test_type):
                     f"Action {i+1}: Received action index from GPT-4: '{action_index}'."
                 )
                 element = buttons[action_index]
-                past_actions.append(element.get_attribute("outerHTML"))
             else:
                 print(
                     f"Did not find a valid action index in the response from GPT-4: {action_string}"
@@ -140,8 +138,9 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 continue
 
         print(
-            f"Action {i+1}: Clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
+            f"Action {i+1}: {test_type.capitalize()} tester clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
         )
+        past_actions.append(element.get_attribute("outerHTML"))
         element.click()
 
         # Check for alert and accept it if present
