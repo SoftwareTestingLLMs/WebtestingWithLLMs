@@ -111,12 +111,13 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
             # Create the prompt for the GPT model with task description
             prompt = (
-                f"Your task is to test a web application in detail using Python and Selenium by providing the next action. Try to test as many different features as possible. "
+                f"Your task as a language model is to generate a sequence of actions for a UI tester that interacts with a calculator web application. The tester is designed to follow your instructions and will perform the actions you specify, testing the calculator's functionality. "
+                f"The goal is to create comprehensive test coverage by interacting with as many different features of the calculator as possible, in an effort to find potential bugs. "
                 f"Here is the filtered HTML source code of the page: '{filtered_html}'. "
                 f"Here are the available buttons: {clickable_elements_data}. "
                 f"The display of the calculator currently shows: {display_value}. "
                 f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {past_actions}. "
-                f"Please select the index of the action to perform by enclosing it in brackets like this: [3]. Futher, in each step, provide an explanation of your choice or mention if something is not clear."
+                f"Please specify the index of the button to click on next, enclosed in brackets like this: [3]. Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs."
             )
 
             # Ask the GPT model for the next action
