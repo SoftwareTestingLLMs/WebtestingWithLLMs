@@ -88,10 +88,12 @@ def main(url, delay, interactions, load_wait_time, test_type):
     filtered_html = filter_html(browser.page_source)
 
     # Start testing
-    past_actions = [] 
+    past_actions = []
     for i in range(interactions):
         # Refresh the list of buttons before each interaction
         buttons = browser.find_elements(By.XPATH, "//button")
+        display_element = browser.find_element_by_id("display")
+        display_value = display_element.get_attribute("value")
 
         element = None
         if test_type == "monkey":
@@ -110,6 +112,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
             # Create the prompt for the GPT model with task description
             prompt = (
                 f"Your task is to test a web application in detail using Python and Selenium by providing the next action. Try to test as many different features as possible. "
+                f"The current value on the calculator display is '{display_value}'. "
                 f"Here is the filtered HTML source code of the page: '{filtered_html}'. "
                 f"Here are the available buttons: {clickable_elements_data}. "
                 f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {past_actions}. "
