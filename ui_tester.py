@@ -45,7 +45,7 @@ def filter_html(html_string):
 )
 @click.option(
     "--interactions",
-    default=100,
+    default=5,
     help="The number of interactions to perform on the web application.",
 )
 @click.option(
@@ -56,7 +56,7 @@ def filter_html(html_string):
 @click.option(
     "--test-type",
     type=click.Choice(["monkey", "gpt4"], case_sensitive=False),
-    default="monkey",
+    default="gpt4",
     help="The type of testing to perform.",
 )
 def main(url, delay, interactions, load_wait_time, test_type):
