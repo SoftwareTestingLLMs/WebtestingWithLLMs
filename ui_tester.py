@@ -87,13 +87,12 @@ def main(url, delay, interactions, load_wait_time, test_type):
     # Get the filtered HTML source code of the page
     filtered_html = filter_html(browser.page_source)
 
-    # Find all buttons
-    buttons = browser.find_elements(By.XPATH, "//button")
-
-    print(f"Found {len(buttons)} clickable elements (buttons).")
-
     # Start testing
     for i in range(interactions):
+        # Refresh the list of buttons before each interaction
+        buttons = browser.find_elements(By.XPATH, "//button")
+        print(f"Found {len(buttons)} clickable elements (buttons).")
+
         element = None  # We declare element variable here
         if test_type == "monkey":
             # Choose a random button
@@ -101,10 +100,12 @@ def main(url, delay, interactions, load_wait_time, test_type):
         else:
             past_actions = []
             clickable_elements_data = []
-            for i, button in enumerate(buttons):
+
+            # Rename loop counter to j to avoid conflict
+            for j, button in enumerate(buttons):
                 button_outerHTML = button.get_attribute("outerHTML")
                 clickable_elements_data.append(
-                    {"index": i, "outerHTML": button_outerHTML, "tag": "button"}
+                    {"index": j, "outerHTML": button_outerHTML, "tag": "button"}
                 )
 
             # Create the prompt for the GPT model with task description
