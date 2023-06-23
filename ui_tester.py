@@ -81,6 +81,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
             )
             element.click()
         else:
+            past_actions = []
             clickable_elements_data = []
             for i, button in enumerate(buttons):
                 button_outerHTML = button.get_attribute("outerHTML")
@@ -93,6 +94,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 f"Your task is to test a web application using Python and Selenium. "
                 f"Here is the HTML source code of the page: '{browser.page_source}'. "
                 f"Here are the available buttons: {clickable_elements_data}. "
+                f"Here are the past actions: {past_actions}. "
                 f"Please select the index of the action to perform by enclosing it in brackets like this: [3]."
             )
 
@@ -112,6 +114,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
                 action_button = buttons[action_index]
                 action_button.click()
+                past_actions.append(action_button.get_attribute("outerHTML"))
             else:
                 print(
                     f"Did not find a valid action index in the response from GPT-4: {action_string}"
