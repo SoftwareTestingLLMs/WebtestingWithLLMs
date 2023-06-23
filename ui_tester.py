@@ -5,12 +5,12 @@ import openai
 from pathlib import Path
 import urllib.parse
 import json
+import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import random
-import string
 
 
 @click.command()
@@ -65,41 +65,35 @@ def main(url, delay, interactions, load_wait_time, test_type):
     )
     print("Web page loaded successfully.")
 
-    # Find all buttons and input fields
+    # Find all buttons
     buttons = browser.find_elements(By.XPATH, "//button")
-    inputs = browser.find_elements(By.XPATH, "//input")
 
-    # Create a list for clickable elements
-    clickable_elements = buttons + [
-        input for input in inputs if not input.get_attribute("readonly")
-    ]
-
-    print(f"Found {len(clickable_elements)} clickable elements.")
+    print(f"Found {len(buttons)} clickable elements (buttons).")
 
     # Start testing
     for i in range(interactions):
         if test_type == "monkey":
+            # Create a list for clickable elements
+            clickable_elements = buttons
             element = random.choice(clickable_elements)
-            if element.tag_name == "button":
-                print(
-                    f"Action {i+1}: Clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
-                )
-                element.click()
-            elif element.tag_name == "input":
-                random_text = "".join(
-                    random.choices(string.ascii_letters + string.digits, k=5)
-                )
-                print(
-                    f"Action {i+1}: Entering text into input field with outerHTML: '{element.get_attribute('outerHTML')}', text: '{random_text}'."
-                )
-                element.send_keys(random_text)
+            print(
+                f"Action {i+1}: Clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
+            )
+            element.click()
         else:
+            clickable_elements_data = []
+            for i, button in enumerate(buttons):
+                button_id = button.get_attribute("id")
+                clickable_elements_data.append(
+                    {"index": i, "id": button_id, "tag": "button"}
+                )
+
             # Create the prompt for the GPT model with task description
             prompt = (
                 f"Your task is to test a web application using Python and Selenium. "
                 f"Here is the HTML source code of the page: '{browser.page_source}'. "
-                f"Please generate the next action to interact with this web page. "
-                f"Try to cover as many different features and edge cases as possible."
+                f"Here are the available buttons: {clickable_elements_data}. "
+                f"Please select the index of the action to perform by enclosing it in brackets like this: [3]."
             )
 
             # Ask the GPT model for the next action
@@ -107,11 +101,23 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 model="gpt-4", messages=[{"role": "user", "content": prompt}]
             )
 
-            action = response["choices"][0]["message"]["content"]
-            print(
-                f"Action {i+1}: Received action from GPT-4: '{action}'. Executing it."
-            )
-            exec(action)  # Execute the action
+            action_string = response["choices"][0]["message"]["content"]
+            match = re.search(r"\[(\d+)\]", action_string)
+
+            if match:
+                action_index = int(match.group(1))
+                print(
+                    f"Action {i+1}: Received action index from GPT-4: '{action_index}'."
+                )
+
+                action_button = buttons[action_index]
+                action_button.click()
+            else:
+                print(
+                    f"Did not find a valid action index in the response from GPT-4: {action_string}"
+                )
+                # handle the missing action index, for example, skip this interaction
+                continue
 
         # Check for alert and accept it if present
         try:
