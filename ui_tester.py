@@ -83,9 +83,9 @@ def main(url, delay, interactions, load_wait_time, test_type):
         else:
             clickable_elements_data = []
             for i, button in enumerate(buttons):
-                button_id = button.get_attribute("id")
+                button_outerHTML = button.get_attribute("outerHTML")
                 clickable_elements_data.append(
-                    {"index": i, "id": button_id, "tag": "button"}
+                    {"index": i, "outerHTML": button_outerHTML, "tag": "button"}
                 )
 
             # Create the prompt for the GPT model with task description
