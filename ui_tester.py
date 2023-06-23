@@ -45,7 +45,7 @@ def filter_html(html_string):
 )
 @click.option(
     "--interactions",
-    default=5,
+    default=20,
     help="The number of interactions to perform on the web application.",
 )
 @click.option(
@@ -92,7 +92,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
     for i in range(interactions):
         # Refresh the list of buttons before each interaction
         buttons = browser.find_elements(By.XPATH, "//button")
-        display_element = browser.find_element_by_id("display")
+        display_element = browser.find_element(By.ID, "display")
         display_value = display_element.get_attribute("value")
 
         element = None
@@ -112,9 +112,9 @@ def main(url, delay, interactions, load_wait_time, test_type):
             # Create the prompt for the GPT model with task description
             prompt = (
                 f"Your task is to test a web application in detail using Python and Selenium by providing the next action. Try to test as many different features as possible. "
-                f"The current value on the calculator display is '{display_value}'. "
                 f"Here is the filtered HTML source code of the page: '{filtered_html}'. "
                 f"Here are the available buttons: {clickable_elements_data}. "
+                f"The display of the calculator currently shows: {display_value}. "
                 f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {past_actions}. "
                 f"Please select the index of the action to perform by enclosing it in brackets like this: [3]. Futher, in each step, provide an explanation of your choice or mention if something is not clear."
             )
@@ -125,6 +125,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
             )
 
             action_string = response["choices"][0]["message"]["content"]
+            print(action_string)
             match = re.search(r"\[(\d+)\]", action_string)
 
             if match:
