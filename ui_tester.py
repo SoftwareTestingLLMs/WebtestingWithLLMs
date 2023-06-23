@@ -11,6 +11,20 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import random
+from bs4 import BeautifulSoup
+
+
+def filter_html(html_string):
+    soup = BeautifulSoup(html_string, "html.parser")
+
+    # Remove all script and style elements
+    for script in soup(["script", "style"]):
+        script.decompose()
+
+    # Convert HTML object back to a string, keeping newline characters
+    text = soup.prettify()
+
+    return text
 
 
 @click.command()
@@ -65,6 +79,9 @@ def main(url, delay, interactions, load_wait_time, test_type):
     )
     print("Web page loaded successfully.")
 
+    # Get the filtered HTML source code of the page
+    filtered_html = filter_html(browser.page_source)
+
     # Find all buttons
     buttons = browser.find_elements(By.XPATH, "//button")
 
@@ -92,7 +109,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
             # Create the prompt for the GPT model with task description
             prompt = (
                 f"Your task is to test a web application using Python and Selenium. "
-                f"Here is the HTML source code of the page: '{browser.page_source}'. "
+                f"Here is the filtered HTML source code of the page: '{filtered_html}'. "
                 f"Here are the available buttons: {clickable_elements_data}. "
                 f"Here are the past actions: {past_actions}. "
                 f"Please select the index of the action to perform by enclosing it in brackets like this: [3]."
