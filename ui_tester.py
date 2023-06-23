@@ -22,12 +22,12 @@ def filter_html(html_string):
         script.decompose()
 
     # Remove the div with id 'coverage'
-    coverage_div = soup.find(id='coverage')
+    coverage_div = soup.find(id="coverage")
     if coverage_div:
         coverage_div.decompose()
 
-    # Convert HTML object back to a string, keeping newline characters
-    text = soup.prettify()
+    # Convert HTML object back to a string without additional newlines
+    text = str(soup)
 
     return text
 
