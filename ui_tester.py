@@ -108,6 +108,9 @@ def main(url, delay, interactions, load_wait_time, test_type):
             )
 
             action = response["choices"][0]["message"]["content"]
+            print(
+                f"Action {i+1}: Received action from GPT-4: '{action}'. Executing it."
+            )
             exec(action)  # Execute the action
 
         # Check for alert and accept it if present
