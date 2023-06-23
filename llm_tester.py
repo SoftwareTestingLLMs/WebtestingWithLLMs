@@ -1,14 +1,13 @@
 import click
-import os.path
 import time
 import openai
-from pathlib import Path
-import urllib.parse
 import json
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import random
+import string
 
 
 @click.command()
@@ -32,7 +31,13 @@ from selenium.webdriver.support import expected_conditions as EC
     default=10,
     help="The maximum time to wait (in seconds) for the page to load.",
 )
-def main(url, delay, interactions, load_wait_time):
+@click.option(
+    "--test-type",
+    type=click.Choice(["monkey", "gpt4"], case_sensitive=False),
+    default="monkey",
+    help="The type of testing to perform.",
+)
+def main(url, delay, interactions, load_wait_time, test_type):
     # OpenAI key loading would be required here
     with open("openai_key.json", "r") as file:
         openai.api_key = json.load(file)["key"]
@@ -47,23 +52,40 @@ def main(url, delay, interactions, load_wait_time):
     )
     print("Web page loaded successfully.")
 
-    # Start interacting with the page
+    # Find all buttons and input fields
+    buttons = browser.find_elements(By.XPATH, "//button")
+    inputs = browser.find_elements(By.XPATH, "//input")
+
+    # Create a list for clickable elements
+    clickable_elements = buttons + [
+        input for input in inputs if not input.get_attribute("readonly")
+    ]
+
+    # Start testing
     for i in range(interactions):
-        # Create the prompt for the GPT model with task description
-        prompt = (
-            f"Your task is to test a web application using Python and Selenium. "
-            f"Here is the HTML source code of the page: '{browser.page_source}'. "
-            f"Please generate the next action to interact with this web page. "
-            f"Try to cover as many different features and edge cases as possible."
-        )
-
-        # Ask the GPT model for the next action
-        response = openai.ChatCompletion.create(
-            model="gpt-4", messages=[{"role": "user", "content": prompt}]
-        )
-
-        action = response["choices"][0]["message"]["content"]
-        exec(action)  # Execute the action
+        if test_type == "monkey":
+            element = random.choice(clickable_elements)
+            if element.tag_name == "button":
+                element.click()
+            elif element.tag_name == "input":
+                random_text = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=5)
+                )
+                element.send_keys(random_text)
+        else:
+            # Create the prompt for the GPT model with task description
+            prompt = (
+                f"Your task is to test a web application using Python and Selenium. "
+                f"Here is the HTML source code of the page: '{browser.page_source}'. "
+                f"Please generate the next action to interact with this web page. "
+                f"Try to cover as many different features and edge cases as possible."
+            )
+            # Ask the GPT model for the next action
+            response = openai.ChatCompletion.create(
+                model="gpt-4", messages=[{"role": "user", "content": prompt}]
+            )
+            action = response["choices"][0]["message"]["content"]
+            exec(action)  # Execute the action
 
         # Check for alert and accept it if present
         try:
