@@ -132,9 +132,6 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
             if match:
                 action_index = int(match.group(1))
-                print(
-                    f"Action {i+1}: Received action index from GPT-4: '{action_index}'."
-                )
                 element = buttons[action_index]
             else:
                 print(
