@@ -45,7 +45,7 @@ def filter_html(html_string):
 )
 @click.option(
     "--interactions",
-    default=20,
+    default=5,
     help="The number of interactions to perform on the web application.",
 )
 @click.option(
@@ -100,14 +100,8 @@ def main(url, delay, interactions, load_wait_time, test_type):
             # Choose a random button
             element = random.choice(buttons)
         else:
-            clickable_elements_data = []
-
-            # Rename loop counter to j to avoid conflict
-            for j, button in enumerate(buttons):
-                button_outerHTML = button.get_attribute("outerHTML")
-                clickable_elements_data.append(
-                    {"index": j, "outerHTML": button_outerHTML, "tag": "button"}
-                )
+            # Create list of clickable elements using IDs
+            clickable_elements_data = [button.get_attribute("id") for button in buttons]
 
             # Create the prompt for the GPT model with task description
             prompt = (
@@ -117,7 +111,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 f"Here are the available buttons: {clickable_elements_data}. "
                 f"The display of the calculator currently shows: {display_value}. "
                 f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {past_actions}. "
-                f"Please specify the index of the button to click on next, enclosed in brackets like this: [3]. "
+                f"Please specify the id of the button to click on next, enclosed in brackets like this: [button3] (for a button with the id button3). "
                 f"Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases."
             )
 
@@ -128,16 +122,21 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
             action_string = response["choices"][0]["message"]["content"]
             print(action_string)
-            match = re.search(r"\[(\d+)\]", action_string)
+            match = re.search(r"\[(.*?)\]", action_string)
 
             if match:
-                action_index = int(match.group(1))
-                element = buttons[action_index]
+                action_id = match.group(1)
+                for button in buttons:
+                    if button.get_attribute("id") == action_id:
+                        element = button
+                        break
+                if not element:
+                    print(f"No button found with id: {action_id}")
+                    continue
             else:
                 print(
                     f"Did not find a valid action index in the response from GPT-4: {action_string}"
                 )
-                # handle the missing action index, for example, skip this interaction
                 continue
 
         element.click()
@@ -152,10 +151,10 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
         # Record the observation after the action
         current_observation = display_element.get_attribute("value")
-        current_action = element.get_attribute("outerHTML")
+        current_action = element.get_attribute("id")
 
         print(
-            f"Action {i+1}: {test_type.capitalize()} tester clicking button with outerHTML: '{current_action}'. Current observation: {current_observation}"
+            f"Action {i+1}: {test_type.capitalize()} tester clicking button with id: '{current_action}'. Current observation: {current_observation}"
         )
 
         # Record action
