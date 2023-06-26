@@ -118,7 +118,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 f"The display of the calculator currently shows: {display_value}. "
                 f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {past_actions}. "
                 f"Please specify the index of the button to click on next, enclosed in brackets like this: [3]. "
-                f"Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs."
+                f"Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases."
             )
 
             # Ask the GPT model for the next action
