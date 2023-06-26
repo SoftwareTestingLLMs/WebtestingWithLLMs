@@ -111,8 +111,8 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
             # Create the prompt for the GPT model with task description
             prompt = (
-                f"Interact with a virtual calculator to conduct a series of tests for its functionality. "
-                f"At the start of every prompt, you will be provided a list of your past actions and the resulting state of the calculator after each action. "
+                f"Given a basic web calculator, you are tasked with testing its functionality. "
+                f"The calculator only supports unary and binary operations (up to two numbers and one operation at a time). "
                 f"Here is the filtered HTML source code of the page: '{filtered_html}'. "
                 f"Here are the available buttons: {clickable_elements_data}. "
                 f"The display of the calculator currently shows: {display_value}. "
@@ -145,14 +145,6 @@ def main(url, delay, interactions, load_wait_time, test_type):
 
         element.click()
 
-        # Record the observation after the action
-        current_observation = display_element.get_attribute("value")
-        current_action = element.get_attribute("outerHTML")
-
-        print(
-            f"Action {i+1}: {test_type.capitalize()} tester clicking button with outerHTML: '{current_action}'. Current observation: {current_observation}"
-        )
-
         # Check for alert and accept it if present
         try:
             alert = browser.switch_to.alert
@@ -160,6 +152,14 @@ def main(url, delay, interactions, load_wait_time, test_type):
             alert.accept()
         except Exception as e:
             pass  # no alert, so pass
+
+        # Record the observation after the action
+        current_observation = display_element.get_attribute("value")
+        current_action = element.get_attribute("outerHTML")
+
+        print(
+            f"Action {i+1}: {test_type.capitalize()} tester clicking button with outerHTML: '{current_action}'. Current observation: {current_observation}"
+        )
 
         # Record action
         past_actions.append(
