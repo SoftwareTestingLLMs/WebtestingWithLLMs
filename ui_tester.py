@@ -12,6 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import random
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 
 def filter_html(html_string):
@@ -45,7 +46,7 @@ def filter_html(html_string):
 )
 @click.option(
     "--interactions",
-    default=5,
+    default=30,
     help="The number of interactions to perform on the web application.",
 )
 @click.option(
@@ -56,7 +57,7 @@ def filter_html(html_string):
 @click.option(
     "--test-type",
     type=click.Choice(["monkey", "gpt4"], case_sensitive=False),
-    default="gpt4",
+    default="monkey",
     help="The type of testing to perform.",
 )
 def main(url, delay, interactions, load_wait_time, test_type):
@@ -179,6 +180,16 @@ def main(url, delay, interactions, load_wait_time, test_type):
     browser.quit()
 
     print(f"Past actions: {json.dumps(past_actions, indent=4)}")
+
+    # Create results directory if it doesn't exist
+    os.makedirs("results", exist_ok=True)
+
+    # Save past actions to a time-stamped output file
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    with open(f"results/past_actions_{timestamp}.json", "w") as file:
+        json.dump(past_actions, file, indent=4)
+
+    print(f"Past actions saved to: results/past_actions_{timestamp}.json")
 
 
 if __name__ == "__main__":
