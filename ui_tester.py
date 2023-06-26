@@ -158,7 +158,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
         # Record action
         past_actions.append(
             {
-                "index": i,
+                "step": (i + 1),
                 "action": current_action,
                 "observation": current_observation,
             }
