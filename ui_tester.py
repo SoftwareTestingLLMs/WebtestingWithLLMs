@@ -145,12 +145,21 @@ def main(url, delay, interactions, load_wait_time, test_type):
         except Exception as e:
             pass  # no alert, so pass
 
+        # Get coverage percentage
+        try:
+            coverage_element = browser.find_element(By.ID, "percentage")
+            coverage_text = coverage_element.text
+            coverage_percentage = re.search(r"(\d+.\d+)%", coverage_text).group(1)
+        except Exception as e:
+            print(f"Could not find coverage element or extract percentage: {str(e)}")
+            coverage_percentage = None
+
         # Record the observation after the action
         current_observation = display_element.get_attribute("value")
         current_action = element.get_attribute("id")
 
         print(
-            f"Action {i+1}: {test_type.capitalize()} tester clicking button with id: '{current_action}'. Current observation: {current_observation}"
+            f"Action {i+1}: {test_type.capitalize()} tester clicking button with id: '{current_action}' | Current observation: {current_observation} | Coverage: {coverage_percentage}%"
         )
 
         # Record action
@@ -159,6 +168,7 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 "step": (i + 1),
                 "action": current_action,
                 "observation": current_observation,
+                "coverage percentage": coverage_percentage,
             }
         )
 
