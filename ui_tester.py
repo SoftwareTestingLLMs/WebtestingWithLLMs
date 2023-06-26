@@ -143,11 +143,15 @@ def main(url, delay, interactions, load_wait_time, test_type):
                 # handle the missing action index, for example, skip this interaction
                 continue
 
-        print(
-            f"Action {i+1}: {test_type.capitalize()} tester clicking button with outerHTML: '{element.get_attribute('outerHTML')}'."
-        )
-
         element.click()
+
+        # Record the observation after the action
+        current_observation = display_element.get_attribute("value")
+        current_action = element.get_attribute("outerHTML")
+
+        print(
+            f"Action {i+1}: {test_type.capitalize()} tester clicking button with outerHTML: '{current_action}'. Current observation: {current_observation}"
+        )
 
         # Check for alert and accept it if present
         try:
@@ -161,8 +165,8 @@ def main(url, delay, interactions, load_wait_time, test_type):
         past_actions.append(
             {
                 "index": i,
-                "action": element.get_attribute("outerHTML"),
-                "observation": display_element.get_attribute("value"),
+                "action": current_action,
+                "observation": current_observation,
             }
         )
 
