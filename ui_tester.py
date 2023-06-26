@@ -173,6 +173,8 @@ def main(url, delay, interactions, load_wait_time, test_type):
     print("Closing the browser.")
     browser.quit()
 
+    print(f"Past actions: {json.dumps(past_actions, indent=4)}")
+
 
 if __name__ == "__main__":
     main()
