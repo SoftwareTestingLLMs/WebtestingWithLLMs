@@ -131,13 +131,11 @@ def main(url, delay, interactions, load_wait_time, test_type):
                         element = button
                         break
                 if not element:
-                    print(f"No button found with id: {action_id}")
-                    continue
+                    raise Exception(f"No button found with id: {action_id}")
             else:
-                print(
+                raise Exception(
                     f"Did not find a valid action index in the response from GPT-4: {action_string}"
                 )
-                continue
 
         element.click()
 
