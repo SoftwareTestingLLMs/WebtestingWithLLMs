@@ -60,7 +60,12 @@ def filter_html(html_string):
     default="monkey",
     help="The type of testing to perform.",
 )
-def main(url, delay, interactions, load_wait_time, test_type):
+@click.option(
+    "--output-dir",
+    default="results",
+    help="The directory where the results will be saved.",
+)
+def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
     if os.path.isfile(url):
         # If it is a local file, convert the file path to a proper URL
@@ -182,14 +187,14 @@ def main(url, delay, interactions, load_wait_time, test_type):
     print(f"Past actions: {json.dumps(past_actions, indent=4)}")
 
     # Create results directory if it doesn't exist
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Save past actions to a time-stamped output file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    with open(f"results/past_actions_{timestamp}.json", "w") as file:
+    with open(f"{output_dir}/past_actions_{timestamp}.json", "w") as file:
         json.dump(past_actions, file, indent=4)
 
-    print(f"Past actions saved to: results/past_actions_{timestamp}.json")
+    print(f"Past actions saved to: {output_dir}/past_actions_{timestamp}.json")
 
 
 if __name__ == "__main__":
