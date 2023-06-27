@@ -22,7 +22,7 @@ formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
 
 # Defining test types
 test_types = ["monkey"]
-openai_llms = ["gpt-4", "gpt-3.5-turbo"]
+openai_llms = ["gpt-4-0613", "gpt-3.5-turbo-0613"]
 test_types.extend(openai_llms)
 
 
@@ -153,21 +153,43 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
                 f"Here is the filtered HTML source code of the web application: '{filtered_html}'. "
                 f"Here are the available interactable GUI elements: {clickable_elements_data}. "
                 f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {format_past_actions(past_actions)}"
-                f"Please specify the id of the element to click on next, enclosed in brackets like this: [button3] (for a button with the id button3). "
-                f"Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases."
+                f"Please output the id of the element to click on next. Further provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases."
             )
+
+            # Define the function for GPT
+            functions = [
+                {
+                    "name": "select_element",
+                    "description": "Selects an element given its ID",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "The id of the element to select"
+                            },
+                        },
+                        "required": ["id"],
+                    },
+                }
+            ]
 
             # Ask the GPT model for the next action
             response = openai.ChatCompletion.create(
-                model=test_type, messages=[{"role": "user", "content": prompt}]
+                model=test_type, 
+                messages=[{"role": "user", "content": prompt}], 
+                functions=functions,
+                function_call={"name": "select_element"}
             )
 
-            action_string = response["choices"][0]["message"]["content"]
-            logger.info(action_string)
-            match = re.search(r"\[(.*?)\]", action_string)
+            response_message = response["choices"][0]["message"]
+            logger.info(response_message)
 
-            if match:
-                action_id = match.group(1)
+            # Check if GPT wanted to call a function
+            if response_message.get("function_call"):
+                function_args = json.loads(response_message["function_call"]["arguments"])
+                action_id = function_args.get("id")
+
                 for button in buttons:
                     if button.get_attribute("id") == action_id:
                         element = button
@@ -175,9 +197,8 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
                 if not element:
                     raise Exception(f"No button found with id: {action_id}")
             else:
-                raise Exception(
-                    f"Did not find a valid action index in the response: {action_string}"
-                )
+                raise Exception(f"The model did not make a function call in the response: {response_message}")
+
         else:
             raise ValueError(f"Invalid test type: {test_type}")
 
