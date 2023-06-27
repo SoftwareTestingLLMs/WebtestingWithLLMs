@@ -44,6 +44,13 @@ def filter_html(html_string):
     return text
 
 
+def format_past_actions(past_actions):
+    formatted_actions = "\n"
+    for action in past_actions:
+        formatted_actions += f"Step {action['step']}: Action: {action['action']} | Observation: {action['observation']} | Coverage Percentage:  {action['coverage percentage']}%\n"
+    return formatted_actions
+
+
 @click.command()
 @click.option(
     "--url",
@@ -142,9 +149,9 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
                 f"Given a web application, you are tasked with testing its functionality. "
                 f"Here is the filtered HTML source code of the web application: '{filtered_html}'. "
                 f"Here are the available interactable GUI elements: {clickable_elements_data}. "
-                f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {past_actions}. "
                 f"Please specify the id of the element to click on next, enclosed in brackets like this: [button3] (for a button with the id button3). "
-                f"Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases."
+                f"Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases. "
+                f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {format_past_actions(past_actions)}"
             )
 
             # Ask the GPT model for the next action
