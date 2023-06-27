@@ -62,16 +62,22 @@ def filter_html(html_string):
 )
 @click.option(
     "--test-type",
-    type=click.Choice(["monkey", "gpt4"], case_sensitive=False),
-    default="gpt4",
+    type=click.Choice(["monkey", "gpt"], case_sensitive=False),
+    default="gpt",
     help="The type of testing to perform.",
+)
+@click.option(
+    "--model",
+    type=click.Choice(["gpt-3.5-turbo", "gpt4"], case_sensitive=False),
+    default="gpt4",
+    help="The OpenAI model to use for testing.",
 )
 @click.option(
     "--output-dir",
     default="results",
     help="The directory where the output files will be stored.",
 )
-def main(url, delay, interactions, load_wait_time, test_type, output_dir):
+def main(url, delay, interactions, load_wait_time, test_type, model, output_dir):
     # Check if the given URL is a local file path
     if os.path.isfile(url):
         # If it is a local file, convert the file path to a proper URL
@@ -145,7 +151,7 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
 
             # Ask the GPT model for the next action
             response = openai.ChatCompletion.create(
-                model="gpt-4", messages=[{"role": "user", "content": prompt}]
+                model=model, messages=[{"role": "user", "content": prompt}]
             )
 
             action_string = response["choices"][0]["message"]["content"]
@@ -162,7 +168,7 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
                     raise Exception(f"No button found with id: {action_id}")
             else:
                 raise Exception(
-                    f"Did not find a valid action index in the response from GPT-4: {action_string}"
+                    f"Did not find a valid action index in the response from {model}: {action_string}"
                 )
 
         element.click()
