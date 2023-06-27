@@ -13,7 +13,12 @@ from selenium.webdriver.support import expected_conditions as EC
 import random
 from bs4 import BeautifulSoup
 from datetime import datetime
-import sys
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
 
 
 def filter_html(html_string):
@@ -84,10 +89,16 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Create results directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
-    # Redirect standard output to a file
-    sys.stdout = open(os.path.join(output_dir, "output.txt"), "w")
+    # Set up file and console handlers for logging
+    file_handler = logging.FileHandler(os.path.join(output_dir, "output.log"))
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
-    print(f"Starting the test on URL: {url}")
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    logger.info(f"Starting the test on URL: {url}")
 
     # OpenAI key loading would be required here
     with open("openai_key.json", "r") as file:
@@ -101,7 +112,7 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     WebDriverWait(browser, load_wait_time).until(
         EC.presence_of_element_located((By.TAG_NAME, "body"))
     )
-    print("Web page loaded successfully.")
+    logger.info("Web page loaded successfully.")
 
     # Get the filtered HTML source code of the page
     filtered_html = filter_html(browser.page_source)
@@ -138,7 +149,7 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
             )
 
             action_string = response["choices"][0]["message"]["content"]
-            print(action_string)
+            logger.info(action_string)
             match = re.search(r"\[(.*?)\]", action_string)
 
             if match:
@@ -159,7 +170,7 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
         # Check for alert and accept it if present
         try:
             alert = browser.switch_to.alert
-            print(f"Alert found with message: {alert.text}. Accepting it.")
+            logger.info(f"Alert found with message: {alert.text}. Accepting it.")
             alert.accept()
         except Exception as e:
             pass  # no alert, so pass
@@ -170,14 +181,16 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
             coverage_text = coverage_element.text
             coverage_percentage = re.search(r"(\d+.\d+)%", coverage_text).group(1)
         except Exception as e:
-            print(f"Could not find coverage element or extract percentage: {str(e)}")
+            logger.info(
+                f"Could not find coverage element or extract percentage: {str(e)}"
+            )
             coverage_percentage = None
 
         # Record the observation after the action
         current_observation = display_element.get_attribute("value")
         current_action = element.get_attribute("id")
 
-        print(
+        logger.info(
             f"Action {i+1}: {test_type.capitalize()} tester clicking button with id: '{current_action}' | Current observation: {current_observation} | Coverage: {coverage_percentage}%"
         )
 
@@ -194,7 +207,7 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
         time.sleep(delay)  # Wait a bit between actions for the page to update
 
     # Close the driver
-    print("Closing the browser.")
+    logger.info("Test run completed.")
     browser.quit()
 
     # Save click arguments
@@ -212,9 +225,9 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     with open(os.path.join(output_dir, "past_actions.json"), "w") as file:
         json.dump(past_actions, file, indent=4)
 
-    print(f"Past actions saved to: {os.path.join(output_dir, 'past_actions.json')}")
-
-    sys.stdout.close()
+    logger.info(
+        f"Past actions saved to: {os.path.join(output_dir, 'past_actions.json')}"
+    )
 
 
 if __name__ == "__main__":
