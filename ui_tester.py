@@ -13,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import random
 from bs4 import BeautifulSoup
 from datetime import datetime
+import sys
 
 
 def filter_html(html_string):
@@ -57,13 +58,13 @@ def filter_html(html_string):
 @click.option(
     "--test-type",
     type=click.Choice(["monkey", "gpt4"], case_sensitive=False),
-    default="monkey",
+    default="gpt4",
     help="The type of testing to perform.",
 )
 @click.option(
     "--output-dir",
     default="results",
-    help="The directory where the results will be saved.",
+    help="The directory where the output files will be stored.",
 )
 def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
@@ -73,6 +74,18 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     elif not urllib.parse.urlsplit(url).scheme:
         # If it's a relative file path, convert it to an absolute path first, then to a proper URL
         url = Path(os.path.abspath(url)).as_uri()
+
+    # Time-stamp to uniquely identify this run
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Create a unique subfolder for each test run
+    output_dir = os.path.join(output_dir, timestamp)
+
+    # Create results directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Redirect standard output to a file
+    sys.stdout = open(os.path.join(output_dir, "output.txt"), "w")
 
     print(f"Starting the test on URL: {url}")
 
@@ -184,17 +197,24 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     print("Closing the browser.")
     browser.quit()
 
-    print(f"Past actions: {json.dumps(past_actions, indent=4)}")
+    # Save click arguments
+    config = {
+        "url": url,
+        "delay": delay,
+        "interactions": interactions,
+        "load_wait_time": load_wait_time,
+        "test_type": test_type,
+    }
+    with open(os.path.join(output_dir, "config.json"), "w") as file:
+        json.dump(config, file, indent=4)
 
-    # Create results directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Save past actions to a time-stamped output file
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    with open(f"{output_dir}/past_actions_{timestamp}.json", "w") as file:
+    # Save past actions to an output file
+    with open(os.path.join(output_dir, "past_actions.json"), "w") as file:
         json.dump(past_actions, file, indent=4)
 
-    print(f"Past actions saved to: {output_dir}/past_actions_{timestamp}.json")
+    print(f"Past actions saved to: {os.path.join(output_dir, 'past_actions.json')}")
+
+    sys.stdout.close()
 
 
 if __name__ == "__main__":
