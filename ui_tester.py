@@ -225,6 +225,8 @@ def main(url, delay, interactions, load_wait_time, test_type, model, output_dir)
         "interactions": interactions,
         "load_wait_time": load_wait_time,
         "test_type": test_type,
+        "model": model,
+        "output_dir": output_dir,
     }
     with open(os.path.join(output_dir, "config.json"), "w") as file:
         json.dump(config, file, indent=4)
