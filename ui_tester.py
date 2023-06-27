@@ -47,7 +47,7 @@ def filter_html(html_string):
 @click.command()
 @click.option(
     "--url",
-    default="https://sea-lion-app-q6nwz.ondigitalocean.app/sample1",
+    default="https://sea-lion-app-q6nwz.ondigitalocean.app/calculator",
     help="The URL of the web application to test.",
 )
 @click.option(
