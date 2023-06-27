@@ -139,12 +139,11 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir):
 
             # Create the prompt for the GPT model with task description
             prompt = (
-                f"Given a basic web calculator, you are tasked with testing its functionality. "
-                f"The calculator only supports unary and binary operations (up to two numbers and one operation at a time). "
-                f"Here is the filtered HTML source code of the page: '{filtered_html}'. "
-                f"Here are the available buttons: {clickable_elements_data}. "
+                f"Given a web application, you are tasked with testing its functionality. "
+                f"Here is the filtered HTML source code of the web application: '{filtered_html}'. "
+                f"Here are the available interactable GUI elements: {clickable_elements_data}. "
                 f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {past_actions}. "
-                f"Please specify the id of the button to click on next, enclosed in brackets like this: [button3] (for a button with the id button3). "
+                f"Please specify the id of the element to click on next, enclosed in brackets like this: [button3] (for a button with the id button3). "
                 f"Please also provide a brief explanation or reasoning for your choice in each step, and remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases."
             )
 
