@@ -63,7 +63,7 @@ def filter_html(html_string):
 @click.option(
     "--test-type",
     type=click.Choice(["monkey", "gpt"], case_sensitive=False),
-    default="gpt",
+    default="monkey",
     help="The type of testing to perform.",
 )
 @click.option(
