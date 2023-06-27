@@ -62,7 +62,7 @@ def filter_html(html_string):
 )
 @click.option(
     "--test-type",
-    type=click.Choice(["monkey", "gpt"], case_sensitive=False),
+    type=click.Choice(["monkey", "openai-gpt"], case_sensitive=False),
     default="monkey",
     help="The type of testing to perform.",
 )
@@ -134,7 +134,7 @@ def main(url, delay, interactions, load_wait_time, test_type, model, output_dir)
         if test_type == "monkey":
             # Choose a random button
             element = random.choice(buttons)
-        else:
+        elif test_type == "openai-gpt":
             # Create list of clickable elements using IDs
             clickable_elements_data = [button.get_attribute("id") for button in buttons]
 
@@ -170,6 +170,8 @@ def main(url, delay, interactions, load_wait_time, test_type, model, output_dir)
                 raise Exception(
                     f"Did not find a valid action index in the response from {model}: {action_string}"
                 )
+        else:
+            raise ValueError(f"Invalid test type: {test_type}")
 
         element.click()
 
