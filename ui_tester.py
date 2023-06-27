@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
 
+# Defining test types
+test_types = ["monkey"]
+openai_llms = ["gpt-4", "gpt-3.5-turbo"]
+test_types.extend(openai_llms)
+
 
 def filter_html(html_string):
     soup = BeautifulSoup(html_string, "html.parser")
@@ -62,22 +67,16 @@ def filter_html(html_string):
 )
 @click.option(
     "--test-type",
-    type=click.Choice(["monkey", "openai-gpt"], case_sensitive=False),
+    type=click.Choice(test_types, case_sensitive=False),
     default="monkey",
     help="The type of testing to perform.",
-)
-@click.option(
-    "--model",
-    type=click.Choice(["gpt-3.5-turbo", "gpt4"], case_sensitive=False),
-    default="gpt4",
-    help="The OpenAI model to use for testing.",
 )
 @click.option(
     "--output-dir",
     default="results",
     help="The directory where the output files will be stored.",
 )
-def main(url, delay, interactions, load_wait_time, test_type, model, output_dir):
+def main(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
     if os.path.isfile(url):
         # If it is a local file, convert the file path to a proper URL
@@ -134,7 +133,7 @@ def main(url, delay, interactions, load_wait_time, test_type, model, output_dir)
         if test_type == "monkey":
             # Choose a random button
             element = random.choice(buttons)
-        elif test_type == "openai-gpt":
+        elif test_type in openai_llms:
             # Create list of clickable elements using IDs
             clickable_elements_data = [button.get_attribute("id") for button in buttons]
 
@@ -151,7 +150,7 @@ def main(url, delay, interactions, load_wait_time, test_type, model, output_dir)
 
             # Ask the GPT model for the next action
             response = openai.ChatCompletion.create(
-                model=model, messages=[{"role": "user", "content": prompt}]
+                model=test_type, messages=[{"role": "user", "content": prompt}]
             )
 
             action_string = response["choices"][0]["message"]["content"]
@@ -168,7 +167,7 @@ def main(url, delay, interactions, load_wait_time, test_type, model, output_dir)
                     raise Exception(f"No button found with id: {action_id}")
             else:
                 raise Exception(
-                    f"Did not find a valid action index in the response from {model}: {action_string}"
+                    f"Did not find a valid action index in the response: {action_string}"
                 )
         else:
             raise ValueError(f"Invalid test type: {test_type}")
@@ -225,7 +224,6 @@ def main(url, delay, interactions, load_wait_time, test_type, model, output_dir)
         "interactions": interactions,
         "load_wait_time": load_wait_time,
         "test_type": test_type,
-        "model": model,
         "output_dir": output_dir,
     }
     with open(os.path.join(output_dir, "config.json"), "w") as file:
