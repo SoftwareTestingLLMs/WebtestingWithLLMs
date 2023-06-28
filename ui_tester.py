@@ -22,7 +22,7 @@ formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
 
 # Defining test types
 test_types = ["monkey"]
-openai_llms = ["gpt-4-0613", "gpt-3.5-turbo-0613"]
+openai_llms = ["gpt-4", "gpt-3.5-turbo"]
 test_types.extend(openai_llms)
 
 
