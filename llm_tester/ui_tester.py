@@ -86,6 +86,10 @@ def format_past_actions(past_actions):
     default="results",
     help="The directory where the output files will be stored.",
 )
+def main(url, delay, interactions, load_wait_time, test_type, output_dir):
+    run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
+
+
 def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
     if os.path.isfile(url):
@@ -278,4 +282,4 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
 
 
 if __name__ == "__main__":
-    run_ui_test()
+    main()
