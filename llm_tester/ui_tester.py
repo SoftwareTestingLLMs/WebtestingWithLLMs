@@ -1,4 +1,3 @@
-import click
 import os.path
 import time
 import openai
@@ -15,16 +14,6 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import logging
 import shutil
-
-# Set up logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
-
-# Defining test types
-test_types = ["monkey"]
-openai_llms = ["gpt-4", "gpt-3.5-turbo"]
-test_types.extend(openai_llms)
 
 
 def filter_html(html_string):
@@ -55,42 +44,6 @@ def format_past_actions(past_actions):
     return formatted_actions
 
 
-@click.command()
-@click.option(
-    "--url",
-    default="https://sea-lion-app-q6nwz.ondigitalocean.app/calculator",
-    help="The URL of the web application to test.",
-)
-@click.option(
-    "--delay",
-    default=0.5,
-    help="The time delay (in seconds) between actions on the web application.",
-)
-@click.option(
-    "--interactions",
-    default=30,
-    help="The number of interactions to perform on the web application.",
-)
-@click.option(
-    "--load-wait-time",
-    default=10,
-    help="The maximum time to wait (in seconds) for the page to load.",
-)
-@click.option(
-    "--test-type",
-    type=click.Choice(test_types, case_sensitive=False),
-    default="monkey",
-    help="The type of testing to perform.",
-)
-@click.option(
-    "--output-dir",
-    default="results",
-    help="The directory where the output files will be stored.",
-)
-def main(url, delay, interactions, load_wait_time, test_type, output_dir):
-    run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
-
-
 def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
     if os.path.isfile(url):
@@ -99,6 +52,11 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     elif not urllib.parse.urlsplit(url).scheme:
         # If it's a relative file path, convert it to an absolute path first, then to a proper URL
         url = Path(os.path.abspath(url)).as_uri()
+
+    # Set up logging
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
 
     # Set up file and console handlers for logging
     log_path = "temp_output.log"  # Creating a temporary log file
@@ -140,7 +98,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         if test_type == "monkey":
             # Choose a random button
             element = random.choice(buttons)
-        elif test_type in openai_llms:
+        elif test_type in ["gpt-4", "gpt-3.5-turbo"]:
             # Create list of clickable elements using IDs
             clickable_elements_data = [button.get_attribute("id") for button in buttons]
 
@@ -287,7 +245,3 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     final_log_path = os.path.join(output_dir, "output.log")
     shutil.move(log_path, final_log_path)
     logger.info(f"Logs saved to: {final_log_path}")
-
-
-if __name__ == "__main__":
-    main()
