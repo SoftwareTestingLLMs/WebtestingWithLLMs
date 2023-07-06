@@ -14,6 +14,7 @@ import random
 from bs4 import BeautifulSoup
 from datetime import datetime
 import logging
+import shutil
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -99,17 +100,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         # If it's a relative file path, convert it to an absolute path first, then to a proper URL
         url = Path(os.path.abspath(url)).as_uri()
 
-    # Time-stamp to uniquely identify this run
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # Create a unique subfolder for each test run
-    output_dir = os.path.join(output_dir, timestamp)
-
-    # Create results directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-
     # Set up file and console handlers for logging
-    file_handler = logging.FileHandler(os.path.join(output_dir, "output.log"))
+    log_path = os.path.join(output_dir, "output.log")  # Creating a log file
+    file_handler = logging.FileHandler(log_path)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
@@ -269,6 +262,16 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         "test_type": test_type,
         "output_dir": output_dir,
     }
+
+    # Time-stamp to uniquely identify this run
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Create a unique subfolder for each test run
+    output_dir = os.path.join(output_dir, timestamp)
+
+    # Create results directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
     with open(os.path.join(output_dir, "config.json"), "w") as file:
         json.dump(config, file, indent=4)
 
@@ -279,6 +282,11 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     logger.info(
         f"Past actions saved to: {os.path.join(output_dir, 'past_actions.json')}"
     )
+
+    # Move the temp log file to the final output directory
+    final_log_path = os.path.join(output_dir, "output.log")
+    shutil.move(log_path, final_log_path)
+    logger.info(f"Logs saved to: {final_log_path}")
 
 
 if __name__ == "__main__":
