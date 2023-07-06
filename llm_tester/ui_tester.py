@@ -59,6 +59,20 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
 
     log_messages = []
 
+    config = {
+        "url": url,
+        "delay": delay,
+        "interactions": interactions,
+        "load_wait_time": load_wait_time,
+        "test_type": test_type,
+        "output_dir": output_dir,
+    }
+
+    # Add configuration to log
+    log_messages = custom_logger(
+        f"Configuration: {json.dumps(config, indent=2)}", log_messages
+    )
+
     log_messages = custom_logger(f"Starting the test on URL: {url}", log_messages)
 
     # OpenAI key loading would be required here
@@ -234,16 +248,6 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     log_messages = custom_logger("Test run completed.", log_messages)
     browser.quit()
 
-    # Save click arguments
-    config = {
-        "url": url,
-        "delay": delay,
-        "interactions": interactions,
-        "load_wait_time": load_wait_time,
-        "test_type": test_type,
-        "output_dir": output_dir,
-    }
-
     # Time-stamp to uniquely identify this run
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -253,6 +257,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     # Create results directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
+    # Save click arguments
     with open(os.path.join(output_dir, "config.json"), "w") as file:
         json.dump(config, file, indent=4)
 
