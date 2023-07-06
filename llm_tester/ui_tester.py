@@ -210,8 +210,24 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     # Extract and log the code coverage data after all interactions
     coverage_json_string = browser.execute_script("return JSON.stringify(coverage)")
     coverage_data = json.loads(coverage_json_string)
+    covered_blocks = sum(
+        1
+        for function in coverage_data.values()
+        for block, times in function.items()
+        if times > 0
+    )
+    total_blocks = sum(len(function) for function in coverage_data.values())
+    coverage_percentage = (
+        round((covered_blocks / total_blocks) * 100, 2) if total_blocks > 0 else 0
+    )
+
+    logger.info(f"Final coverage data: {json.dumps(coverage_data, indent=2)}")
+
     logger.info(
-        f"Final coverage data: {json.dumps(coverage_data, indent=2)}"
+        f"Detailed coverage calculation explanation: Out of the total number of {total_blocks} blocks across all functions, "
+        f"{covered_blocks} were covered (i.e., executed at least once during the test). This leads to a final "
+        f"coverage percentage of {coverage_percentage}%. This percentage represents the ratio of the number of "
+        f"covered blocks to the total number of blocks, giving equal weight to each block."
     )
 
     # Close the driver
