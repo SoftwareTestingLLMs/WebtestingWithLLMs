@@ -101,7 +101,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         url = Path(os.path.abspath(url)).as_uri()
 
     # Set up file and console handlers for logging
-    log_path = os.path.join(output_dir, "output.log")  # Creating a log file
+    log_path = "temp_output.log"  # Creating a temporary log file
     file_handler = logging.FileHandler(log_path)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
