@@ -12,8 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 import random
 from bs4 import BeautifulSoup
 from datetime import datetime
-import logging
-import shutil
 
 
 def filter_html(html_string):
@@ -44,6 +42,12 @@ def format_past_actions(past_actions):
     return formatted_actions
 
 
+def custom_logger(msg, log_messages):
+    print(msg)
+    log_messages.append(f"{datetime.now()}:{msg}\n")
+    return log_messages
+
+
 def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
     if os.path.isfile(url):
@@ -53,22 +57,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         # If it's a relative file path, convert it to an absolute path first, then to a proper URL
         url = Path(os.path.abspath(url)).as_uri()
 
-    # Set up logging
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
+    log_messages = []
 
-    # Set up file and console handlers for logging
-    log_path = "temp_output.log"  # Creating a temporary log file
-    file_handler = logging.FileHandler(log_path)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    logger.info(f"Starting the test on URL: {url}")
+    log_messages = custom_logger(f"Starting the test on URL: {url}", log_messages)
 
     # OpenAI key loading would be required here
     with open("openai_key.json", "r") as file:
@@ -82,7 +73,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     WebDriverWait(browser, load_wait_time).until(
         EC.presence_of_element_located((By.TAG_NAME, "body"))
     )
-    logger.info("Web page loaded successfully.")
+    log_messages = custom_logger("Web page loaded successfully.", log_messages)
 
     # Get the filtered HTML source code of the page
     filtered_html = filter_html(browser.page_source)
@@ -150,7 +141,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     response_message["function_call"]["arguments"]
                 )
                 action_id = function_args.get("id")
-                logger.info(function_args.get("explanation"))
+                log_messages = custom_logger(
+                    function_args.get("explanation"), log_messages
+                )
 
                 for button in buttons:
                     if button.get_attribute("id") == action_id:
@@ -171,7 +164,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         # Check for alert and accept it if present
         try:
             alert = browser.switch_to.alert
-            logger.info(f"Alert found with message: {alert.text}. Accepting it.")
+            log_messages = custom_logger(
+                f"Alert found with message: {alert.text}. Accepting it.", log_messages
+            )
             alert.accept()
         except Exception as e:
             pass  # no alert, so pass
@@ -182,8 +177,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             coverage_text = coverage_element.text
             coverage_percentage = re.search(r"(\d+.\d+)%", coverage_text).group(1)
         except Exception as e:
-            logger.info(
-                f"Could not find coverage element or extract percentage: {str(e)}"
+            log_messages = custom_logger(
+                f"Could not find coverage element or extract percentage: {str(e)}",
+                log_messages,
             )
             coverage_percentage = None
 
@@ -191,8 +187,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         current_observation = display_element.get_attribute("value")
         current_action = element.get_attribute("id")
 
-        logger.info(
-            f"Action {i+1}: {test_type.capitalize()} tester clicking button with id: '{current_action}' | Current observation: {current_observation} | Coverage: {coverage_percentage}%"
+        log_messages = custom_logger(
+            f"Action {i+1}: {test_type.capitalize()} tester clicking button with id: '{current_action}' | Current observation: {current_observation} | Coverage: {coverage_percentage}%",
+            log_messages,
         )
 
         # Record action
@@ -221,17 +218,20 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         round((covered_blocks / total_blocks) * 100, 2) if total_blocks > 0 else 0
     )
 
-    logger.info(f"Final coverage data: {json.dumps(coverage_data, indent=2)}")
+    log_messages = custom_logger(
+        f"Final coverage data: {json.dumps(coverage_data, indent=2)}", log_messages
+    )
 
-    logger.info(
+    log_messages = custom_logger(
         f"Detailed coverage calculation explanation: Out of the total number of {total_blocks} blocks across all functions, "
         f"{covered_blocks} were covered (i.e., executed at least once during the test). This leads to a final "
         f"coverage percentage of {coverage_percentage}%. This percentage represents the ratio of the number of "
-        f"covered blocks to the total number of blocks, giving equal weight to each block."
+        f"covered blocks to the total number of blocks, giving equal weight to each block.",
+        log_messages,
     )
 
     # Close the driver
-    logger.info("Test run completed.")
+    log_messages = custom_logger("Test run completed.", log_messages)
     browser.quit()
 
     # Save click arguments
@@ -260,11 +260,18 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     with open(os.path.join(output_dir, "past_actions.json"), "w") as file:
         json.dump(past_actions, file, indent=4)
 
-    logger.info(
-        f"Past actions saved to: {os.path.join(output_dir, 'past_actions.json')}"
+    log_messages = custom_logger(
+        f"Past actions saved to: {os.path.join(output_dir, 'past_actions.json')}",
+        log_messages,
     )
 
-    # Move the temp log file to the final output directory
-    final_log_path = os.path.join(output_dir, "output.log")
-    shutil.move(log_path, final_log_path)
-    logger.info(f"Logs saved to: {final_log_path}")
+    # Save log messages to a log file
+    with open(os.path.join(output_dir, "output.log"), "w") as log_file:
+        for message in log_messages:
+            log_file.write(f"{message}\n")
+
+    log_messages = custom_logger(
+        f"Logs saved to: {os.path.join(output_dir, 'output.log')}", log_messages
+    )
+
+    return log_messages, past_actions
