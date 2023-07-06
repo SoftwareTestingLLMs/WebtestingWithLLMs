@@ -1,6 +1,7 @@
 openai_key.json
 prompt.txt
 /results
+run_experiments.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
