@@ -187,6 +187,13 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             )
             coverage_percentage = None
 
+        # After each interaction, extract and log the code coverage data
+        coverage_json_string = browser.execute_script("return JSON.stringify(coverage)")
+        coverage_data = json.loads(coverage_json_string)
+        logger.info(
+            f"Coverage data after interaction {i+1}: {json.dumps(coverage_data, indent=2)}"
+        )
+
         # Record the observation after the action
         current_observation = display_element.get_attribute("value")
         current_action = element.get_attribute("id")
