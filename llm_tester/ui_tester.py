@@ -44,7 +44,7 @@ def format_past_actions(past_actions):
 
 def custom_logger(msg, log_messages):
     print(msg)
-    log_messages.append(f"{datetime.now()}:{msg}\n")
+    log_messages.append(f"{datetime.now()}:{msg}")
     return log_messages
 
 
