@@ -5,7 +5,9 @@ from pathlib import Path
 import urllib.parse
 import json
 import re
+from enum import Enum
 from selenium import webdriver
+from selenium.webdriver import ActionChains
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -44,7 +46,6 @@ def custom_logger(msg, log_messages):
     return log_messages
 
 def is_clickable(element, driver):
-    print("checking ", str(element.get_attribute("outerHTML")))
     return element.is_displayed() and element.is_enabled()
 
 def extract_coverage(driver):
@@ -61,6 +62,68 @@ def extract_coverage(driver):
     branches_total = int(coverage_search_result.group(2))
     percentage = branches_hit / branches_total
     return SimpleNamespace(covered=branches_hit, blocks=branches_total, percentage=percentage)
+
+class ArgDescriptor:
+    def __init__(self, name, description, randomizeValue):
+        self.name = name
+        self.description = description
+        self.randomizeValue = randomizeValue
+
+class ActionType:
+    def __init__(self, name, description, action, silentExceptions = [], args = []):
+        self.name = name
+        self.action = action
+        self.description = description
+        self.args = args
+        self.silent_exceptions = silentExceptions
+
+def random_string():
+    return ''.join(random.choices(string.ascii + string.digits + [' '], k = random.randint(3, 9)))
+
+class ActionTypes(Enum):
+    CLICK = ActionType('click', 'clicks on a html element', lambda action, driver, args: action.element.click(), [ElementClickInterceptedException])
+    HOVER = ActionType('hover', 'moves the mouse over an html element', lambda action, driver, args: ActionChains(driver).move_to_element(action.element).perform())
+    SEND_KEYS = ActionType('send_keys', 'sends keystrokes to an html element', lambda action, driver, args: action.element.send_keys(args[0]), [ArgDescriptor('keys', 'the keys to be sent to the input element', random_string)])
+    CLEAR = ActionType('clear', 'resets the contents of an html element', lambda action, driver, args: action.element.clear())
+
+class Action:
+
+    def __init__(self, element, action_type):
+        self.element = element
+        self.type = action_type
+        self.id = element.get_attribute("id")
+        if element is None or element.get_attribute("id") == "":
+            raise Exception("No id in element " + element.get_attribute('outerHTML'))
+    
+    def execute(self, driver, args = None):
+        self.type.action(self, driver, args)
+    
+    def action_id(self):
+        return self.id + self.type.name
+    
+    def __str__(self):
+        return self.element.get_attribute('outerHTML')
+
+    def should_fail_silently(self, on_exception):
+        return any(map(lambda e: isinstance(on_exception, e), self.type.silent_exceptions))
+
+def extract_actions(driver):
+    actions = []
+
+    clickables = driver.find_elements(By.XPATH, "//button") + driver.find_elements(By.XPATH, "//a") + driver.find_elements(By.CSS_SELECTOR, ".on-click")
+    clickable_dict = dict()
+    for element in clickables:
+        id = element.get_attribute("id")
+        if id not in clickable_dict and is_clickable(element, driver):
+            clickable_dict[id] = element
+    clickables = list(clickable_dict.values())
+    actions += map(lambda b: Action(b, ActionTypes.CLICK.value), clickables)
+
+    mouse_overs = driver.find_elements(By.CSS_SELECTOR, ".mouse-over")
+    actions += map(lambda e: Action(e, ActionTypes.HOVER.value), mouse_overs)
+
+    # TODO: text fields
+    return actions
 
 def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
@@ -118,18 +181,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     past_actions = []
     for i in range(interactions):
         # Refresh the list of buttons before each interaction
-        buttons = browser.find_elements(By.XPATH, "//button") + browser.find_elements(By.XPATH, "//a") + browser.find_elements(By.CSS_SELECTOR, ".on-click")
-        button_dict = dict()
-        for element in buttons:
-            id = element.get_attribute("id")
-            if id not in button_dict and is_clickable(element, browser):
-                button_dict[id] = element
-        buttons = list(button_dict.values())
-        #display_element = browser.find_element(By.ID, "display")
-
-        for element in buttons:
-            if element.get_attribute("id") == "":
-                raise Exception("No id in element " + element.get_attribute('outerHTML'))
+        action_dict = dict()
+        for action in extract_actions(browser):
+            action_dict[action.action_id()] = action
 
         # Get the filtered HTML source code of the page
         filtered_html = filter_html(browser.page_source)
@@ -143,7 +197,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             element = None
             if test_type == "monkey":
                 # Choose a random button
-                element = random.choice(buttons)
+                action = random.choice(list(action_dict.values()))
             elif test_type in ["gpt-4", "gpt-3.5-turbo"]:
                 # Create list of clickable elements using IDs
                 clickable_elements_data = [button.get_attribute("id") for button in buttons]
@@ -214,14 +268,16 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             else:
                 raise ValueError(f"Invalid test type: {test_type}")
 
-            current_action = element.get_attribute("id")
-            print("clicking " + element.get_attribute("outerHTML"))
+            current_action = action.action_id()
+            print("interacting with " + str(action))
             try:
-                element.click()
+                action.execute(browser)
                 success = True
-            except ElementClickInterceptedException:
-                del button_dict[element.get_attribute("id")]
-                buttons = list(button_dict.values())
+            except Exception as e:
+                if action.should_fail_silently(e):
+                    del action_dict[action.action_id()]
+                else:
+                    raise e
 
         # Check for alert and accept it if present
         try:
