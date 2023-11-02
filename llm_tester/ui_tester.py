@@ -5,6 +5,7 @@ from pathlib import Path
 import urllib.parse
 import json
 import re
+import string
 from enum import Enum
 from selenium import webdriver
 from selenium.webdriver import ActionChains
@@ -17,7 +18,6 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from types import SimpleNamespace
 
-
 def filter_html(html_string):
     soup = BeautifulSoup(html_string, "html.parser")
 
@@ -29,7 +29,6 @@ def filter_html(html_string):
     text = str(soup)
 
     return text
-
 
 def format_past_actions(past_actions):
     if not past_actions:
@@ -78,12 +77,12 @@ class ActionType:
         self.silent_exceptions = silentExceptions
 
 def random_string():
-    return ''.join(random.choices(string.ascii + string.digits + [' '], k = random.randint(3, 9)))
+    return ''.join(random.choices(string.ascii_letters + string.digits + ' @.', k = random.randint(3, 9)))
 
 class ActionTypes(Enum):
     CLICK = ActionType('click', 'clicks on a html element', lambda action, driver, args: action.element.click(), [ElementClickInterceptedException])
     HOVER = ActionType('hover', 'moves the mouse over an html element', lambda action, driver, args: ActionChains(driver).move_to_element(action.element).perform())
-    SEND_KEYS = ActionType('send_keys', 'sends keystrokes to an html element', lambda action, driver, args: action.element.send_keys(args[0]), [ArgDescriptor('keys', 'the keys to be sent to the input element', random_string)])
+    SEND_KEYS = ActionType('send_keys', 'sends keystrokes to an html element', lambda action, driver, args: action.element.send_keys(args[0]), [], [ArgDescriptor('keys', 'the keys to be sent to the input element', random_string)])
     CLEAR = ActionType('clear', 'resets the contents of an html element', lambda action, driver, args: action.element.clear())
 
 class Action:
@@ -92,20 +91,26 @@ class Action:
         self.element = element
         self.type = action_type
         self.id = element.get_attribute("id")
+        self.attributes = None
         if element is None or element.get_attribute("id") == "":
             raise Exception("No id in element " + element.get_attribute('outerHTML'))
     
-    def execute(self, driver, args = None):
-        self.type.action(self, driver, args)
+    def execute(self, driver):
+        self.type.action(self, driver, self.attributes)
     
     def action_id(self):
         return self.id + self.type.name
     
     def __str__(self):
-        return self.element.get_attribute('outerHTML')
+        return "action: " + self.type.name + ('(' + ' '.join(self.attributes) + ')' if not self.attributes is None else '') + " element: " + self.element.get_attribute('outerHTML')
 
     def should_fail_silently(self, on_exception):
         return any(map(lambda e: isinstance(on_exception, e), self.type.silent_exceptions))
+    
+    def with_random_args(self):
+        if len(self.type.args) != 0:
+            self.attributes = list(map(lambda arg: arg.randomizeValue(), self.type.args))
+        return self
 
 def extract_actions(driver):
     actions = []
@@ -122,7 +127,10 @@ def extract_actions(driver):
     mouse_overs = driver.find_elements(By.CSS_SELECTOR, ".mouse-over")
     actions += map(lambda e: Action(e, ActionTypes.HOVER.value), mouse_overs)
 
-    # TODO: text fields
+    text_fields = driver.find_elements(By.XPATH, "//input[@type='text']")
+    actions += map(lambda e: Action(e, ActionTypes.SEND_KEYS.value), text_fields)
+    actions += map(lambda e: Action(e, ActionTypes.CLEAR.value), filter(lambda t: t.get_attribute("value") != "", text_fields))
+
     return actions
 
 def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
@@ -189,7 +197,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         filtered_html = filter_html(browser.page_source)
 
         # Save click arguments
-        with open(os.path.join(output_dir, "page_" + str(i) + ".json"), "w") as file:
+        with open(os.path.join(output_dir, "page_" + str(i) + ".html"), "w") as file:
             file.write(filtered_html)
 
         success = False
@@ -197,7 +205,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             element = None
             if test_type == "monkey":
                 # Choose a random button
-                action = random.choice(list(action_dict.values()))
+                action = random.choice(list(action_dict.values())).with_random_args()
             elif test_type in ["gpt-4", "gpt-3.5-turbo"]:
                 # Create list of clickable elements using IDs
                 clickable_elements_data = [button.get_attribute("id") for button in buttons]
@@ -268,8 +276,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             else:
                 raise ValueError(f"Invalid test type: {test_type}")
 
-            current_action = action.action_id()
-            print("interacting with " + str(action))
+            print("executing " + str(action))
             try:
                 action.execute(browser)
                 success = True
@@ -291,7 +298,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
 
         # Get coverage percentage
         try:
-            coverage_percentage = extract_coverage(browser)
+            coverage_percentage = extract_coverage(browser).percentage
             print("coverage " + str(coverage_percentage))
         except Exception as e:
             log_messages = custom_logger(
@@ -304,7 +311,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         current_observation = "todo" #display_element.get_attribute("value")
 
         log_messages = custom_logger(
-            f"Action {i+1}: {test_type.capitalize()} tester clicking button with id: '{current_action}' | Current observation: {current_observation} | Coverage: {coverage_percentage}%",
+            f"Action {i+1}: {test_type.capitalize()} tester executiong: '{str(action)}' | Current observation: {current_observation} | Coverage: {coverage_percentage}%",
             log_messages,
         )
 
@@ -312,7 +319,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         past_actions.append(
             {
                 "step": (i + 1),
-                "action": current_action,
+                "action": str(action),
                 "observation": current_observation,
                 "coverage percentage": coverage_percentage,
             }
