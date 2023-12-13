@@ -208,47 +208,79 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 action = random.choice(list(action_dict.values())).with_random_args()
             elif test_type in ["gpt-4", "gpt-3.5-turbo"]:
                 # Create list of clickable elements using IDs
-                clickable_elements_data = [button.get_attribute("id") for button in buttons]
+                clickable_elements_data = "in the function" #[button.get_attribute("id") for button in buttons]
 
                 # Create the prompt for the GPT model with task description
-                prompt = (
-                    f"Given a web application, you are tasked with testing its functionality. "
-                    f"Here is the filtered HTML source code of the web application: '{filtered_html}'. "
-                    f"Here are the available interactable GUI elements: {clickable_elements_data}. "
-                    f"Here are the ordered past actions that you have done for this test (first element was the first action of the test and the last element was the previous action): {format_past_actions(past_actions)}"
-                    f"Please output the id of the element to click on next and provide a brief explanation or reasoning for your choice. "
-                    f"Remember, the goal is to test as many different features as possible to find potential bugs and make sure to include edge cases."
+                prompt_system = (
+                    f"Given a web application, you are tasked with testing its functionality."
                 )
+                prompt = (
+                    f"Here is the filtered HTML source code of the web application: '{filtered_html}'. "
+                    f"Please output the id of the element to interact with. "
+                    f"Remember, the goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases."
+                )
+                messages = [
+                    { "role": "system", "content": prompt_system },
+                    { "role": "user", "content": prompt },
+                ]
+
+                actions_by_type = dict()
+                for action in action_dict.values():
+                    if action.type.name not in actions_by_type:
+                        actions_by_type[action.type.name] = []
+                    actions_by_type[action.type.name].append(action)
+                
+                # For each action type, create a json schema as output for the GPT model
+                interactions = []
+                for action_type_name in actions_by_type:
+                    action_type = actions_by_type[action_type_name][0].type
+                    properties = dict()
+                    properties["interaction_type"] = {"const": action_type.name}
+                    properties["element_id"] = {"enum": [action.id for action in actions_by_type[action_type_name]]}
+
+                    for arg in action_type.args:
+                        properties[arg.name] = {"type": "string", "description": arg.description}
+
+                    interactions.append({
+                        "type": "object",
+                        "properties": properties,
+                        "required": list(properties.keys()),
+                        "description": action_type.description,
+                    })
+                
+                schema = {
+                    "type": "object",
+                    "properties": {
+                        "interaction": {
+                            "anyOf": interactions,
+                            "description": "The interaction to emulate",
+                        },
+                    },
+                    "required": ["interaction"],
+                }
+
 
                 # Define the function for GPT
                 functions = [
                     {
-                        "name": "select_element",
-                        "description": "Selects an element given its ID and provides an explanation for the choice",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "The id of the element to select",
-                                },
-                                "explanation": {
-                                    "type": "string",
-                                    "description": "The reasoning behind the selection of this element",
-                                },
-                            },
-                            "required": ["id", "explanation"],
-                        },
+                        "name": "emulate_interaction",
+                        "description": "Emulates a user interaction with the web application",
+                        "parameters": schema,
                     }
                 ]
+
+                # Print the function for debugging
+                print(json.dumps(functions, indent=2))
 
                 # Ask the GPT model for the next action
                 response = openai.ChatCompletion.create(
                     model=test_type,
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=messages,
                     functions=functions,
-                    function_call={"name": "select_element"},
+                    function_call={"name": "emulate_interaction"},
                 )
+
+                print(json.dumps(response, indent=2))
 
                 response_message = response["choices"][0]["message"]
 
@@ -257,17 +289,16 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     function_args = json.loads(
                         response_message["function_call"]["arguments"]
                     )
-                    action_id = function_args.get("id")
-                    log_messages = custom_logger(
-                        function_args.get("explanation"), log_messages
-                    )
-
-                    for button in buttons:
-                        if button.get_attribute("id") == action_id:
-                            element = button
-                            break
-                    if not element:
-                        raise Exception(f"No button found with id: {action_id}")
+                    interaction = function_args.get("interaction")
+                    action_type = interaction.get("interaction_type")
+                    action_element_id = interaction.get("element_id")
+                    print("action type " + str(action_type) + " element id " + str(action_element_id))
+                    # find an action that matches the id and type
+                    selected_action = action_dict.get(action_element_id + action_type)
+                    if selected_action is None:
+                        raise Exception(f"No action found with id: {action_id}")
+                    selected_action.attributes = [interaction.get(arg_descriptor.name) for arg_descriptor in selected_action.type.args]
+                    action = selected_action
                 else:
                     raise Exception(
                         f"The model did not make a function call in the response: {response_message}"
