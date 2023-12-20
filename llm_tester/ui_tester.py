@@ -114,7 +114,7 @@ class Action:
 
 def extract_actions(driver):
     actions = []
-
+    is_on_top = lambda e: is_element_on_top(e, driver)
     clickables = driver.find_elements(By.XPATH, "//button") + driver.find_elements(By.XPATH, "//a") + driver.find_elements(By.CSS_SELECTOR, ".on-click")
     clickable_dict = dict()
     for element in clickables:
@@ -122,16 +122,34 @@ def extract_actions(driver):
         if id not in clickable_dict and is_clickable(element, driver):
             clickable_dict[id] = element
     clickables = list(clickable_dict.values())
-    actions += map(lambda b: Action(b, ActionTypes.CLICK.value), clickables)
+    actions += map(lambda b: Action(b, ActionTypes.CLICK.value), filter(is_on_top, clickables))
 
     mouse_overs = driver.find_elements(By.CSS_SELECTOR, ".mouse-over")
-    actions += map(lambda e: Action(e, ActionTypes.HOVER.value), mouse_overs)
+    actions += map(lambda e: Action(e, ActionTypes.HOVER.value), filter(is_on_top, mouse_overs))
 
-    text_fields = driver.find_elements(By.XPATH, "//input[@type='text']")
+    text_fields = list(filter(is_on_top, driver.find_elements(By.XPATH, "//input[@type='text']")))
     actions += map(lambda e: Action(e, ActionTypes.SEND_KEYS.value), text_fields)
     actions += map(lambda e: Action(e, ActionTypes.CLEAR.value), filter(lambda t: t.get_attribute("value") != "", text_fields))
 
     return actions
+
+def is_element_on_top(element, driver):
+    # Note: If the element is outside the viewport, this will return false, even if it is on top.
+    # This may be a problem for some websites, but it is not a problem for the websites we tested.
+    # To keep this simple implementation, a scroll action could be added to the list of actions.
+    if not element.is_displayed():
+        return False
+    middle_point_y = element.location["y"] + element.size["height"] / 2
+    middle_point_x = element.location["x"] + element.size["width"] / 2
+    id = element.get_attribute("id")
+    return driver.execute_script(
+        f"var topmost = document.elementFromPoint({middle_point_x}, {middle_point_y});"
+        f"while (topmost != null) {{"
+        f"    if (topmost.id == \"{id}\") return true;"
+        f"    topmost = topmost.parentElement;"
+        f"}}"
+        f"return false;"
+    )
 
 def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
