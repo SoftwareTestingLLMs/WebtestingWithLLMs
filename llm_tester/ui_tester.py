@@ -30,15 +30,6 @@ def filter_html(html_string):
 
     return text
 
-def format_past_actions(past_actions):
-    if not past_actions:
-        return "No actions available. "
-
-    formatted_actions = "\n"
-    for action in past_actions:
-        formatted_actions += f"Step {action['step']}: Action: {action['action']} | Observation: {action['observation']} | Coverage Percentage: {action['coverage percentage']}%\n"
-    return formatted_actions
-
 def custom_logger(msg, log_messages):
     print(msg)
     log_messages.append(f"{datetime.now()}:{msg}")
