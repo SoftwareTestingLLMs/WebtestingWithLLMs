@@ -187,6 +187,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
 
     # Start testing
     past_actions = []
+
+    past_messages = []
     for i in range(interactions):
         # Refresh the list of buttons before each interaction
         action_dict = dict()
@@ -200,30 +202,54 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         with open(os.path.join(output_dir, "page_" + str(i) + ".html"), "w") as file:
             file.write(filtered_html)
 
+        action_string = None
         success = False
+        previous_misdemeanor = False
+        previous_id = None
+        previous_type = None
+        misdemeanor_count = 0
         while not success:
-            element = None
             if test_type == "monkey":
                 # Choose a random button
                 action = random.choice(list(action_dict.values())).with_random_args()
             elif test_type in ["gpt-4", "gpt-3.5-turbo"]:
-                # Create list of clickable elements using IDs
-                clickable_elements_data = "in the function" #[button.get_attribute("id") for button in buttons]
 
+                # Break if the model is not doing as told
+                if misdemeanor_count > 5:
+                    raise Exception("Tried to use implossible actions too many times. Previous action was " + str(previous_type) + " with id " + str(previous_id) + ".")
+
+                # Remove past html from the input to the model
+                for past_message in past_messages:
+                    if past_message["role"] == "function":
+                        past_message["content"] = "omitted"
+
+                # Append the filtered HTML to the past messages, 
+                if len(past_messages) > 0:
+                    past_messages.append({"role": "function", "name": "emulate_interaction", "content": filtered_html})
+                
+                # Only keep the last 10 messages, this means 5 interactions
+                past_messages = past_messages[-10:]
+                                          
                 # Create the prompt for the GPT model with task description
                 prompt_system = (
-                    f"Given a web application, you are tasked with testing its functionality."
+                    f"Given a web application, you are tasked with assisting in testing its functionality. "
+                    f"The goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases."
+                    f"The emulate_interaction function takes an interaction as input and emulates it on the web application. "
+                    f"The return value of the function is the new, filtered HTML source code of the web application. "
+                    f"The source code of previous interactions will be omitted from the input to the assistant. "
                 )
                 prompt = (
-                    f"Here is the filtered HTML source code of the web application: '{filtered_html}'. "
+                    f"Here is the filtered HTML source code of the web application: '{filtered_html if len(past_messages) == 0 else 'omitted'}'. "
                     f"Please output the id of the element to interact with. "
                     f"Remember, the goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases."
                 )
                 messages = [
                     { "role": "system", "content": prompt_system },
                     { "role": "user", "content": prompt },
+                    *past_messages,
                 ]
 
+                # Create the schema for the function call
                 actions_by_type = dict()
                 for action in action_dict.values():
                     if action.type.name not in actions_by_type:
@@ -255,12 +281,14 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                             "anyOf": interactions,
                             "description": "The interaction to emulate",
                         },
+                        "explanation": {
+                            "type": "string",
+                            "description": "A short explanation of why the interaction was chosen",
+                        },
                     },
                     "required": ["interaction"],
                 }
 
-
-                # Define the function for GPT
                 functions = [
                     {
                         "name": "emulate_interaction",
@@ -269,8 +297,15 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     }
                 ]
 
-                # Print the function for debugging
-                print(json.dumps(functions, indent=2))
+                # Add a message telling the model to only click on clickable elements, etc.
+                theModelIsStupidMessage = ""
+                for interaction in interactions:
+                    theModelIsStupidMessage += f"Only use the {interaction['properties']['interaction_type']['const']} action with the applicable element ids: {', '.join(interaction['properties']['element_id']['enum'])}. "
+
+                if previous_misdemeanor:
+                    theModelIsStupidMessage += f"You cannot use the {previous_type} action with the element id {previous_id} because it is not applicable. "
+
+                messages.append({"role": "system", "content": theModelIsStupidMessage})
 
                 # Ask the GPT model for the next action
                 response = openai.ChatCompletion.create(
@@ -280,9 +315,12 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     function_call={"name": "emulate_interaction"},
                 )
 
-                print(json.dumps(response, indent=2))
+                # Log the api call and the response to an output file
+                with open(os.path.join(output_dir, "api_call_" + str(i) + ".json"), "w") as file:
+                    json.dump({ "response": response, "messages": messages, "functions": functions }, file, indent=2)
 
                 response_message = response["choices"][0]["message"]
+                
 
                 # Check if GPT wanted to call a function
                 if response_message.get("function_call"):
@@ -296,23 +334,37 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     # find an action that matches the id and type
                     selected_action = action_dict.get(action_element_id + action_type)
                     if selected_action is None:
-                        raise Exception(f"No action found with id: {action_id}")
+                        previous_misdemeanor = True
+                        previous_id = action_element_id
+                        previous_type = action_type
+                        misdemeanor_count += 1
+                        log_messages = custom_logger(
+                            f"Action {i+1}: {test_type.capitalize()} tester executiong: '{response_message}' | The model tried to use an impossible action, even after being told not to. | Trying again.", log_messages
+                        )
+                        continue
+                    misdemeanor_count = 0
                     selected_action.attributes = [interaction.get(arg_descriptor.name) for arg_descriptor in selected_action.type.args]
                     action = selected_action
+                    past_messages.append(response_message)
                 else:
                     raise Exception(
                         f"The model did not make a function call in the response: {response_message}"
                     )
+                
 
             else:
                 raise ValueError(f"Invalid test type: {test_type}")
 
             print("executing " + str(action))
             try:
+                action_string = str(action)
                 action.execute(browser)
                 success = True
             except Exception as e:
                 if action.should_fail_silently(e):
+                    log_messages = custom_logger(
+                        f"Action {i+1}: {test_type.capitalize()} tester executiong: '{action_string}' | Failed with exception: {str(e)} | Removed from pool of available actions. | Trying again.", log_messages
+                    )
                     del action_dict[action.action_id()]
                 else:
                     raise e
@@ -342,7 +394,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         current_observation = "todo" #display_element.get_attribute("value")
 
         log_messages = custom_logger(
-            f"Action {i+1}: {test_type.capitalize()} tester executiong: '{str(action)}' | Current observation: {current_observation} | Coverage: {coverage_percentage}%",
+            f"Action {i+1}: {test_type.capitalize()} tester executiong: '{action_string}' | Coverage: {100*coverage_percentage}%",
             log_messages,
         )
 
@@ -350,7 +402,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         past_actions.append(
             {
                 "step": (i + 1),
-                "action": str(action),
+                "action": action_string,
                 "observation": current_observation,
                 "coverage percentage": coverage_percentage,
             }
