@@ -339,7 +339,6 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     interaction = function_args.get("interaction")
                     action_type = interaction.get("interaction_type")
                     action_element_id = interaction.get("element_id")
-                    print("action type " + str(action_type) + " element id " + str(action_element_id))
                     # find an action that matches the id and type
                     selected_action = action_dict.get(action_element_id + action_type)
                     if selected_action is None:
@@ -364,7 +363,6 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             else:
                 raise ValueError(f"Invalid test type: {test_type}")
 
-            print("executing " + str(action))
             try:
                 action_string = str(action)
                 action.execute(browser)
@@ -391,7 +389,6 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         # Get coverage percentage
         try:
             coverage_percentage = extract_coverage(browser).percentage
-            print("coverage " + str(coverage_percentage))
         except Exception as e:
             log_messages = custom_logger(
                 f"Could not find coverage element or extract percentage: {str(e)}",
