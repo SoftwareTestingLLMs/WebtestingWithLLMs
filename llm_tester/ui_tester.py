@@ -426,7 +426,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     log_messages = custom_logger(
         f"Detailed coverage calculation explanation: Out of the total number of {coverage.blocks} blocks across all functions, "
         f"{coverage.covered} were covered (i.e., executed at least once during the test). This leads to a final "
-        f"coverage percentage of {coverage.percentage}%. This percentage represents the ratio of the number of "
+        f"coverage percentage of {coverage.percentage * 100}%. This percentage represents the ratio of the number of "
         f"covered blocks to the total number of blocks, giving equal weight to each block.",
         log_messages,
     )
