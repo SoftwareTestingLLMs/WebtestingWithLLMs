@@ -295,7 +295,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                             "description": "A short explanation of why the interaction was chosen",
                         },
                     },
-                    "required": ["interaction"],
+                    "required": ["interaction", "explanation"],
                 }
 
                 functions = [
