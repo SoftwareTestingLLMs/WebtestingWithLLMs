@@ -246,7 +246,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
             if test_type == "monkey":
                 # Choose a random button
                 action = random.choice(list(action_dict.values())).with_random_args()
-            elif test_type in ["gpt-4", "gpt-3.5-turbo"]:
+            elif test_type in ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo-preview"]:
 
                 # Break if the model is not doing as told
                 if misdemeanor_count > 5:
