@@ -105,7 +105,14 @@ class Action:
 
 def extract_actions(driver):
     actions = []
-    is_on_top = lambda e: is_element_on_top(e, driver)
+    hidden_by = dict()
+    def is_on_top(e):
+        id = e.get_attribute("id")
+        topmost = get_element_on_top(e, driver)
+        if topmost != id:
+            hidden_by[id] = topmost
+            return False
+        return True
     clickables = driver.find_elements(By.XPATH, "//button") + driver.find_elements(By.XPATH, "//a") + driver.find_elements(By.CSS_SELECTOR, ".on-click")
     clickable_dict = dict()
     for element in clickables:
@@ -122,25 +129,38 @@ def extract_actions(driver):
     actions += map(lambda e: Action(e, ActionTypes.SEND_KEYS.value), text_fields)
     actions += map(lambda e: Action(e, ActionTypes.CLEAR.value), filter(lambda t: t.get_attribute("value") != "", text_fields))
 
-    return actions
+    return actions, hidden_by
 
-def is_element_on_top(element, driver):
-    # Note: If the element is outside the viewport, this will return false, even if it is on top.
-    # This may be a problem for some websites, but it is not a problem for the websites we tested.
-    # To keep this simple implementation, a scroll action could be added to the list of actions.
+def get_element_on_top(element, driver):
+    # Scolls to the element and returns the id of the topmost element at the middle of the element.
+    # If the supplied element is a parent of the topmost element, returns the id of the supplied element.
+    # If the element is not displayed, returns an empty string.
+
     if not element.is_displayed():
-        return False
-    middle_point_y = element.location["y"] + element.size["height"] / 2
-    middle_point_x = element.location["x"] + element.size["width"] / 2
+        return ""
     id = element.get_attribute("id")
-    return driver.execute_script(
+    script = (
+        f"var doc = document.getElementById(\"{id}\");"
+        f"doc.scrollIntoView();"
+        f"return doc.getBoundingClientRect();"
+    )
+    rect = driver.execute_script(script)
+    element = driver.find_element(By.ID, id)
+    middle_point_y = rect["y"] + rect["height"] / 2
+    middle_point_x = rect["x"] + rect["width"] / 2
+    ret = driver.execute_script(
         f"var topmost = document.elementFromPoint({middle_point_x}, {middle_point_y});"
+        f"var topmostId = topmost?.id || \"\";"
         f"while (topmost != null) {{"
-        f"    if (topmost.id == \"{id}\") return true;"
+        f"    if (topmost.id == \"{id}\") return topmost.id;"
         f"    topmost = topmost.parentElement;"
         f"}}"
-        f"return false;"
+        f"return topmostId;"
     )
+    return ret
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
 
 def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
     # Check if the given URL is a local file path
@@ -194,6 +214,9 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     )
     log_messages = custom_logger("Web page loaded successfully.", log_messages)
 
+    interactions_by_goal = dict()
+    current_goal = None
+
     # Start testing
     past_actions = []
 
@@ -201,7 +224,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
     for i in range(interactions):
         # Refresh the list of buttons before each interaction
         action_dict = dict()
-        for action in extract_actions(browser):
+        actions, hidden_by = extract_actions(browser)
+        for action in actions:
             action_dict[action.action_id()] = action
 
         # Get the filtered HTML source code of the page
@@ -246,7 +270,62 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     f"The emulate_interaction function takes an interaction as input and emulates it on the web application. "
                     f"The return value of the function is the new, filtered HTML source code of the web application. "
                     f"The source code of previous interactions will be omitted from the input to the assistant. "
+                    f"You may define high-level testing goals using the new_testing_goal argument."
                 )
+                few_shot_examples = [[
+                    {
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "emulate_interaction",
+                            "arguments": json.dumps({
+                                "page_description": "The start page of a web site with multiple calculators for different purposes. There are buttons to navigate to the differet calculators and a button to switch the language of the web site. The current language is English.",
+                                "new_testing_goal": "Test the calculator for calculating the area of a circle in multiple languages.",
+                                "interaction": {
+                                    "interaction_type": "click",
+                                    "element_id": "btn-area-circle",
+                                },
+                                "explanation": "Clicking the 'Circle Area' button to navigate to the calculator for calculating the area of a circle.",
+                            }),
+                        },
+                    },
+                    {
+                        "role": "function",
+                        "name": "emulate_interaction",
+                        "content": "omitted"
+                    },
+                    {
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "emulate_interaction",
+                            "arguments": json.dumps({
+                                "page_description": "A page with a calculator for calculating the area of a circle. There is an empty text field to enter the radius of the circle and a button labeled 'Calculate'. The current language is English.",
+                                "interaction": {
+                                    "interaction_type": "send_keys",
+                                    "element_id": "radius",
+                                    "keys": "5",
+                                },
+                                "explanation": "Entering the radius of the circle into the text field.",
+                            }),
+                        },
+                    },
+                ], [
+                    {
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "emulate_interaction",
+                            "arguments": json.dumps({
+                                "page_description": "An article on a news website. The main part of the article is hidden by a login paywall. The navigation bar has links to different news categories.",
+                                "new_testing_goal": "Subscribe to the comment section of the article.",
+                                "interaction": {
+                                    "interaction_type": "send_keys",
+                                    "element_id": "user-id",
+                                    "keys": "john.doe@fictional.tld",
+                                },
+                                "explanation": "Entering the email address into the login field, because the user is not logged in.",
+                            }),
+                        },
+                    }
+                ]]
                 prompt = (
                     f"Here is the filtered HTML source code of the web application: '{filtered_html if len(past_messages) == 0 else 'omitted'}'. "
                     f"Please output the id of the element to interact with. "
@@ -254,6 +333,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 )
                 messages = [
                     { "role": "system", "content": prompt_system },
+                    { "role": "system", "content": f"Here are some examples how the 'emulate_interaction' function should be used." },
+                    *flatten(map(lambda example: [{ "role": "user", "content": "Please test my website: omitted"}, *example], few_shot_examples)),
                     { "role": "user", "content": prompt },
                     *past_messages,
                 ]
@@ -270,8 +351,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 for action_type_name in actions_by_type:
                     action_type = actions_by_type[action_type_name][0].type
                     properties = dict()
-                    properties["interaction_type"] = {"const": action_type.name}
-                    properties["element_id"] = {"enum": [action.id for action in actions_by_type[action_type_name]]}
+                    properties["interaction_type"] = {"const": action_type.name, "type": "string", "description": "The type of interaction to emulate"}
+                    properties["element_id"] = {"enum": [action.id for action in actions_by_type[action_type_name]], "type": "string", "description": "The id of the element to interact with"}
 
                     for arg in action_type.args:
                         properties[arg.name] = {"type": "string", "description": arg.description}
@@ -286,6 +367,14 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 schema = {
                     "type": "object",
                     "properties": {
+                        "page_description": {
+                            "type": "string",
+                            "description": "A short textual description of the state of the web application",
+                        },
+                        "new_testing_goal": {
+                            "type": "string",
+                            "description": "Assigns a new high level testing goal that needs multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
+                        },
                         "interaction": {
                             "anyOf": interactions,
                             "description": "The interaction to emulate",
@@ -295,7 +384,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                             "description": "A short explanation of why the interaction was chosen",
                         },
                     },
-                    "required": ["interaction", "explanation"],
+                    "required": ["page_description", "new_testing_goal", "interaction", "explanation"] if current_goal is None else ["page_description", "interaction", "explanation"],
                 }
 
                 functions = [
@@ -303,7 +392,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                         "name": "emulate_interaction",
                         "description": "Emulates a user interaction with the web application",
                         "parameters": schema,
-                    }
+                    },
                 ]
 
                 # Add a message telling the model to only click on clickable elements, etc.
@@ -312,7 +401,20 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     theModelIsStupidMessage += f"Only use the {interaction['properties']['interaction_type']['const']} action with the applicable element ids: {', '.join(interaction['properties']['element_id']['enum'])}. "
 
                 if previous_misdemeanor:
-                    theModelIsStupidMessage += f"You cannot use the {previous_type} action with the element id {previous_id} because it is not applicable. "
+                    if type(previous_id) is str:
+                        theModelIsStupidMessage += f"You cannot use the {json.dumps(previous_type)} action with the element id {json.dumps(previous_id)} because it is not applicable. "
+                    else:
+                        theModelIsStupidMessage += f"You cannot use the {json.dumps(previous_type)} action with the element id {json.dumps(previous_id)} because ids must be strings. "
+                
+                if not current_goal is None:
+                    messages.append({"role": "system", "content": f"Pursue the following high-level goal or assign a new one: {current_goal}."})
+                    messages.append({"role": "system", "content": f"Previously executed interactions by goal: {json.dumps(interactions_by_goal)}."})
+                    # if all goals have been explored to some extent, remind the model to try to find new goals
+                    if all(map(lambda goal: interactions_by_goal.get(goal, 0) > 5, interactions_by_goal)):
+                        theModelIsStupidMessage += f"Remember that you can assign completely new high-level goals using the new_testing_goal argument. "
+                    messages.append({"role": "system", "content": f"Start by describing the website supplied by the function call. Give a short general description first then summarize the main elements on the website. Do not use HTML in your description. Either stick to your current goal '{current_goal}' or formulate a new high level goal that should be executed. Take the necessary actions to complete it."})
+                else:
+                    messages.append({"role": "system", "content": f"Start by describing the website supplied by the user. Give a short general description first then summarize the main elements on the website. Do not use HTML in your description. Then formulate a high level goal that should be executed and take the necessary actions to complete it."})
 
                 messages.append({"role": "system", "content": theModelIsStupidMessage})
 
@@ -325,7 +427,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 )
 
                 # Log the api call and the response to an output file
-                with open(os.path.join(output_dir, "api_call_" + str(i) + ".json"), "w") as file:
+                with open(os.path.join(output_dir, "api_call_" + str(i + 1) + ".json"), "w") as file:
                     json.dump({ "response": response, "messages": messages, "functions": functions }, file, indent=2)
 
                 response_message = response["choices"][0]["message"]
@@ -339,8 +441,28 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                     interaction = function_args.get("interaction")
                     action_type = interaction.get("interaction_type")
                     action_element_id = interaction.get("element_id")
+                    if not type(action_element_id) is str:
+                        previous_misdemeanor = True
+                        previous_id = action_element_id
+                        previous_type = action_type
+                        misdemeanor_count += 1
+                        log_messages = custom_logger(
+                            f"Action {i+1}: {test_type.capitalize()} tester executiong: '{response_message}' | The model tried to use a non-string element id. | Trying again.", log_messages
+                        )
+                        continue
                     # find an action that matches the id and type
                     selected_action = action_dict.get(action_element_id + action_type)
+                    if action_element_id in hidden_by:
+                        log_messages = custom_logger(
+                            f"Action {i+1}: {test_type.capitalize()} tester executiong: '{response_message}' | The model tried to use an element that is hidden by {hidden_by[action_element_id]}. | Trying again.", log_messages
+                        )
+                        hiding_element_id = hidden_by[action_element_id]
+                        past_messages.append(response_message)
+                        if hiding_element_id == "":
+                            past_messages.append({"role": "system", "content": "Error: This element is hidden by another element and can not be interacted with."})
+                        else:
+                            past_messages.append({"role": "system", "content": f"Error: This element is hidden by the element with the id {hiding_element_id} and can not be interacted with."})
+                        continue
                     if selected_action is None:
                         previous_misdemeanor = True
                         previous_id = action_element_id
@@ -350,9 +472,17 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                             f"Action {i+1}: {test_type.capitalize()} tester executiong: '{response_message}' | The model tried to use an impossible action, even after being told not to. | Trying again.", log_messages
                         )
                         continue
+                    new_goal = function_args.get("new_testing_goal")
+                    if new_goal is not None:
+                        current_goal = new_goal
+                        log_messages = custom_logger(
+                            f"Action {i+1}: {test_type.capitalize()} | Setting new goal: {current_goal}.", log_messages
+                        )
+                    interactions_by_goal[current_goal] = interactions_by_goal.get(current_goal, 0) + 1
                     misdemeanor_count = 0
                     selected_action.attributes = [interaction.get(arg_descriptor.name) for arg_descriptor in selected_action.type.args]
                     action = selected_action
+                    previous_misdemeanor = False
                     past_messages.append(response_message)
                 else:
                     raise Exception(
