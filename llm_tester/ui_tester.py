@@ -163,7 +163,7 @@ def get_element_on_top(element, driver):
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
-def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir):
+def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir, llm_instructions):
     # Check if the given URL is a local file path
     if os.path.isfile(url):
         # If it is a local file, convert the file path to a proper URL
@@ -182,6 +182,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
         "test_type": test_type,
         "output_dir": output_dir,
     }
+
+    llm_instructions = "The goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases." if llm_instructions is None else llm_instructions
 
     # Time-stamp to uniquely identify this run
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -267,7 +269,6 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 # Create the prompt for the GPT model with task description
                 prompt_system = (
                     f"Given a web application, you are tasked with assisting in testing its functionality. "
-                    f"The goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases."
                     f"The emulate_interaction function takes an interaction as input and emulates it on the web application. "
                     f"The return value of the function is the new, filtered HTML source code of the web application. "
                     f"The source code of previous interactions will be omitted from the input to the assistant. "
@@ -329,9 +330,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 ]]
                 prompt = (
                     f"Here is the filtered HTML source code of the web application: '{filtered_html if len(past_messages) == 0 else 'omitted'}'. "
-                    f"Please output the id of the element to interact with. "
-                    f"Remember, the goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases."
-                )
+                ) + "" if llm_instructions is None else " " + llm_instructions
                 messages = [
                     { "role": "system", "content": prompt_system },
                     { "role": "system", "content": f"Here are some examples how the 'emulate_interaction' function should be used." },
@@ -374,7 +373,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                         },
                         "new_testing_goal": {
                             "type": "string",
-                            "description": "Assigns a new high level testing goal that needs multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
+                            "description": "Assigns a new high level goal that needs to be followed in order to complete the users instructions. This goal should take multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
                         },
                         "interaction": {
                             "anyOf": interactions,
@@ -411,7 +410,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                         theModelIsStupidMessage += f"You cannot use the {json.dumps(previous_type)} action with the element id {json.dumps(previous_id)} because ids must be strings. "
                 
                 if not current_goal is None:
-                    messages.append({"role": "system", "content": f"Pursue the following high-level goal or assign a new one: {current_goal}."})
+                    messages.append({"role": "system", "content": f"The user provided the following end goal: {llm_instructions}."})
+                    messages.append({"role": "system", "content": f"Pursue your self-assigned sub goal or assign a new one: {current_goal}."})
                     messages.append({"role": "system", "content": f"Previously executed interactions by goal: {json.dumps(interactions_by_goal)}."})
                     # if all goals have been explored to some extent, remind the model to try to find new goals
                     if all(map(lambda goal: interactions_by_goal.get(goal, 0) > 5, interactions_by_goal)):

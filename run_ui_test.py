@@ -40,7 +40,12 @@ from llm_tester.ui_tester import run_ui_test
     default=False,
     help="Automatically answer yes to all prompts.",
 )
-def main(url, delay, interactions, load_wait_time, test_type, output_dir, yes):
+@click.option(
+    "--llm-instructions",
+    default=None,
+    help="Additional instructions to the LLM.",
+)
+def main(url, delay, interactions, load_wait_time, test_type, output_dir, yes, llm_instructions):
     if test_type == "gpt-4" and not yes:
         while True:
             print("GPT-4 is discouraged, since it is expensive. Would you like to use the cheaper GPT-4 turbo preview instead? (Y/n)")
@@ -50,7 +55,7 @@ def main(url, delay, interactions, load_wait_time, test_type, output_dir, yes):
                 break
             elif answer == "n":
                 break
-    run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
+    run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir, llm_instructions)
 
 
 if __name__ == "__main__":
