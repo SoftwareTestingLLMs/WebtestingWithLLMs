@@ -60,20 +60,21 @@ class ArgDescriptor:
         self.randomizeValue = randomizeValue
 
 class ActionType:
-    def __init__(self, name, description, action, silentExceptions = [], args = []):
+    def __init__(self, name, description, action, **kwargs):
         self.name = name
         self.action = action
         self.description = description
-        self.args = args
-        self.silent_exceptions = silentExceptions
+        self.args = kwargs["args"] if "args" in kwargs else []
+        self.silent_exceptions = kwargs["silent_exceptions"] if "silent_exceptions" in kwargs else []
+        self.adjective = kwargs["adjective"] if "adjective" in kwargs else name + "able"
 
 def random_string():
     return ''.join(random.choices(string.ascii_letters + string.digits + ' @.', k = random.randint(3, 9)))
 
 class ActionTypes(Enum):
-    CLICK = ActionType('click', 'clicks on a html element', lambda action, driver, args: action.element.click(), [ElementClickInterceptedException])
+    CLICK = ActionType('click', 'clicks on a html element', lambda action, driver, args: action.element.click(), silent_exceptions=[ElementClickInterceptedException])
     HOVER = ActionType('hover', 'moves the mouse over an html element', lambda action, driver, args: ActionChains(driver).move_to_element(action.element).perform())
-    SEND_KEYS = ActionType('send_keys', 'sends keystrokes to an html element', lambda action, driver, args: action.element.send_keys(args[0]), [], [ArgDescriptor('keys', 'the keys to be sent to the input element', random_string)])
+    SEND_KEYS = ActionType('send_keys', 'sends keystrokes to an html element', lambda action, driver, args: action.element.send_keys(args[0]), args=[ArgDescriptor('keys', 'the keys to be sent to the input element', random_string)], adjective='writable')
     CLEAR = ActionType('clear', 'resets the contents of an html element', lambda action, driver, args: action.element.clear())
 
 class Action:
@@ -398,7 +399,10 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir)
                 # Add a message telling the model to only click on clickable elements, etc.
                 theModelIsStupidMessage = ""
                 for interaction in interactions:
-                    theModelIsStupidMessage += f"Only use the {interaction['properties']['interaction_type']['const']} action with the applicable element ids: {', '.join(interaction['properties']['element_id']['enum'])}. "
+                    type_name = interaction["properties"]["interaction_type"]["const"]
+                    action_type = ActionTypes[type_name.upper()].value
+                    adjective = action_type.adjective
+                    theModelIsStupidMessage += f"Only use the {type_name} action with {adjective} elements. The {adjective} elements have the following ids: {', '.join(interaction['properties']['element_id']['enum'])}. "
 
                 if previous_misdemeanor:
                     if type(previous_id) is str:
