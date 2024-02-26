@@ -123,8 +123,10 @@ def extract_actions(driver):
     clickables = list(clickable_dict.values())
     actions += map(lambda b: Action(b, ActionTypes.CLICK.value), filter(is_on_top, clickables))
 
+    ''' Hover no longer needed
     mouse_overs = driver.find_elements(By.CSS_SELECTOR, ".mouse-over")
     actions += map(lambda e: Action(e, ActionTypes.HOVER.value), filter(is_on_top, mouse_overs))
+    '''
 
     text_fields = list(filter(is_on_top, driver.find_elements(By.XPATH, "//input[@type='text']")))
     actions += map(lambda e: Action(e, ActionTypes.SEND_KEYS.value), text_fields)
@@ -183,7 +185,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
         "output_dir": output_dir,
     }
 
-    llm_instructions = "The goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases." if llm_instructions is None else llm_instructions
+    llm_instructions = "Please test my website. The goal is to test as many different features as possible to find potential bugs, so make sure to include edge cases." if llm_instructions is None else llm_instructions
 
     # Time-stamp to uniquely identify this run
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -216,6 +218,17 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
         EC.presence_of_element_located((By.TAG_NAME, "body"))
     )
     log_messages = custom_logger("Web page loaded successfully.", log_messages)
+
+    coverage = extract_coverage(browser)
+
+    log_messages = custom_logger(
+        f"Pre test coverage data: {str(coverage)}", log_messages
+    )
+
+    log_messages = custom_logger(
+        f"Opened website. | Coverage: {coverage.percentage * 100}%",
+        log_messages,
+    )
 
     interactions_by_goal = dict()
     current_goal = None
@@ -272,7 +285,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     f"The emulate_interaction function takes an interaction as input and emulates it on the web application. "
                     f"The return value of the function is the new, filtered HTML source code of the web application. "
                     f"The source code of previous interactions will be omitted from the input to the assistant. "
-                    f"You may define high-level testing goals using the new_testing_goal argument."
+                    #f"You may define high-level testing goals using the new_testing_goal argument."
                 )
                 few_shot_examples = [[
                     {
@@ -329,14 +342,15 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     }
                 ]]
                 prompt = (
-                    f"Here is the filtered HTML source code of the web application: '{filtered_html if len(past_messages) == 0 else 'omitted'}'. "
-                ) + "" if llm_instructions is None else " " + llm_instructions
+                    f"{llm_instructions}"
+                    f" Here is the filtered HTML source code of the web application: '{filtered_html if 0 == 0 else 'omitted'}'. "
+                )# + "" if llm_instructions is None else " " + llm_instructions
                 messages = [
                     { "role": "system", "content": prompt_system },
-                    { "role": "system", "content": f"Here are some examples how the 'emulate_interaction' function should be used." },
-                    *flatten(map(lambda example: [{ "role": "user", "content": "Please test my website: omitted"}, *example], few_shot_examples)),
+                    #{ "role": "system", "content": f"Here are some examples how the 'emulate_interaction' function should be used." },
+                    #*flatten(map(lambda example: [{ "role": "user", "content": "Please test my website: omitted"}, *example], few_shot_examples)),
                     { "role": "user", "content": prompt },
-                    *past_messages,
+                    #*past_messages,
                 ]
 
                 # Create the schema for the function call
@@ -367,24 +381,29 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                 schema = {
                     "type": "object",
                     "properties": {
-                        "page_description": {
-                            "type": "string",
-                            "description": "A short textual description of the state of the web application",
-                        },
-                        "new_testing_goal": {
-                            "type": "string",
-                            "description": "Assigns a new high level goal that needs to be followed in order to complete the users instructions. This goal should take multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
-                        },
+                        #"page_description": {
+                        #    "type": "string",
+                        #    "description": "A short textual description of the state of the web application",
+                        #},
+                        #"new_testing_goal": {
+                        #    "type": "string",
+                        #    "description": "Assigns a new high level goal that needs to be followed in order to complete the users instructions. This goal should take multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
+                        #},
+                        #"explanation": {
+                        #    "type": "string",
+                        #    "description": "Explain what should be achieved with the next action",
+                        #},
                         "interaction": {
                             "anyOf": interactions,
                             "description": "The interaction to emulate",
                         },
-                        "explanation": {
-                            "type": "string",
-                            "description": "A short explanation of why the interaction was chosen",
-                        },
                     },
-                    "required": ["page_description", "new_testing_goal", "interaction", "explanation"] if current_goal is None else ["page_description", "interaction", "explanation"],
+                    "required": [
+                        #"page_description",
+                        #"new_testing_goal",
+                        #"explanation"
+                        "interaction",
+                    ]# if current_goal is None else ["page_description", "interaction", "explanation"],
                 }
 
                 functions = [
@@ -409,6 +428,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     else:
                         theModelIsStupidMessage += f"You cannot use the {json.dumps(previous_type)} action with the element id {json.dumps(previous_id)} because ids must be strings. "
                 
+                '''
                 if not current_goal is None:
                     messages.append({"role": "system", "content": f"The user provided the following end goal: {llm_instructions}."})
                     messages.append({"role": "system", "content": f"Pursue your self-assigned sub goal or assign a new one: {current_goal}."})
@@ -416,9 +436,21 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     # if all goals have been explored to some extent, remind the model to try to find new goals
                     if all(map(lambda goal: interactions_by_goal.get(goal, 0) > 5, interactions_by_goal)):
                         theModelIsStupidMessage += f"Remember that you can assign completely new high-level goals using the new_testing_goal argument. "
-                    messages.append({"role": "system", "content": f"Start by describing the website supplied by the function call. Give a short general description first then summarize the main elements on the website. Do not use HTML in your description. Either stick to your current goal '{current_goal}' or formulate a new high level goal that should be executed. Take the necessary actions to complete it."})
+                    messages.append({"role": "system", "content": (
+                        f"Start by describing the website supplied by the function call."
+                        f" Give a short general description first then summarize the main elements on the website."
+                        f" Do not use HTML in your description. "
+                        f" Either stick to your current goal '{current_goal}' or formulate a new high level goal that should be executed."
+                        f" Take the necessary actions to complete it."
+                    )})
                 else:
-                    messages.append({"role": "system", "content": f"Start by describing the website supplied by the user. Give a short general description first then summarize the main elements on the website. Do not use HTML in your description. Then formulate a high level goal that should be executed and take the necessary actions to complete it."})
+                    messages.append({"role": "system", "content": (
+                        f"Start by describing the website supplied by the user."
+                        f" Give a short general description first then summarize the main elements on the website."
+                        f" Do not use HTML in your description."
+                        f" Then formulate a high level goal that should be executed and take the necessary actions to complete it."
+                    )})
+                '''
 
                 messages.append({"role": "system", "content": theModelIsStupidMessage})
 
