@@ -343,14 +343,14 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                 ]]
                 prompt = (
                     f"{llm_instructions}"
-                    f" Here is the filtered HTML source code of the web application: '{filtered_html if 0 == 0 else 'omitted'}'. "
+                    f" Here is the filtered HTML source code of the web application: '{filtered_html if len(past_messages) == 0 else 'omitted'}'. "
                 )# + "" if llm_instructions is None else " " + llm_instructions
                 messages = [
                     { "role": "system", "content": prompt_system },
                     #{ "role": "system", "content": f"Here are some examples how the 'emulate_interaction' function should be used." },
                     #*flatten(map(lambda example: [{ "role": "user", "content": "Please test my website: omitted"}, *example], few_shot_examples)),
                     { "role": "user", "content": prompt },
-                    #*past_messages,
+                    *past_messages,
                 ]
 
                 # Create the schema for the function call
