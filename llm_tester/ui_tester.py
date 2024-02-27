@@ -381,10 +381,10 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                 schema = {
                     "type": "object",
                     "properties": {
-                        #"page_description": {
-                        #    "type": "string",
-                        #    "description": "A short textual description of the state of the web application",
-                        #},
+                        "page_description": {
+                            "type": "string",
+                            "description": "A short textual description of the state of the web application: What is the current page? What are the main elements on the page? This description should not contain any HTML.",
+                        },
                         #"new_testing_goal": {
                         #    "type": "string",
                         #    "description": "Assigns a new high level goal that needs to be followed in order to complete the users instructions. This goal should take multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
@@ -399,7 +399,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                         },
                     },
                     "required": [
-                        #"page_description",
+                        "page_description",
                         #"new_testing_goal",
                         #"explanation"
                         "interaction",
@@ -428,8 +428,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     else:
                         theModelIsStupidMessage += f"You cannot use the {json.dumps(previous_type)} action with the element id {json.dumps(previous_id)} because ids must be strings. "
                 
-                '''
-                if not current_goal is None:
+                
+                if False: # not current_goal is None:
                     messages.append({"role": "system", "content": f"The user provided the following end goal: {llm_instructions}."})
                     messages.append({"role": "system", "content": f"Pursue your self-assigned sub goal or assign a new one: {current_goal}."})
                     messages.append({"role": "system", "content": f"Previously executed interactions by goal: {json.dumps(interactions_by_goal)}."})
@@ -448,9 +448,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                         f"Start by describing the website supplied by the user."
                         f" Give a short general description first then summarize the main elements on the website."
                         f" Do not use HTML in your description."
-                        f" Then formulate a high level goal that should be executed and take the necessary actions to complete it."
+                        #f" Then formulate a high level goal that should be executed and take the necessary actions to complete it."
                     )})
-                '''
 
                 messages.append({"role": "system", "content": theModelIsStupidMessage})
 
