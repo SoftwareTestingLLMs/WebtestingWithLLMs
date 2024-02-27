@@ -385,13 +385,13 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                             "type": "string",
                             "description": "A short textual description of the state of the web application: What is the current page? What are the main elements on the page? This description should not contain any HTML.",
                         },
-                        #"new_testing_goal": {
-                        #    "type": "string",
-                        #    "description": "Assigns a new high level goal that needs to be followed in order to complete the users instructions. This goal should take multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
-                        #},
+                        "new_testing_goal": {
+                            "type": "string",
+                            "description": "Assigns a new high level sub-goal that shall be followed in order to complete the users instructions. This goal should take multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
+                        },
                         "explanation": {
                             "type": "string",
-                            "description": "Explanation of what should be achieved with the next action",
+                            "description": "An action plan that explains how the goal should be reached.",
                         },
                         "interaction": {
                             "anyOf": interactions,
@@ -400,10 +400,14 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     },
                     "required": [
                         "page_description",
-                        #"new_testing_goal",
+                        "new_testing_goal",
                         "explanation",
                         "interaction",
-                    ]# if current_goal is None else ["page_description", "interaction", "explanation"],
+                    ] if current_goal is None else [
+                        "page_description",
+                        "explanation"
+                        "interaction",
+                    ],
                 }
 
                 functions = [
@@ -428,29 +432,30 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     else:
                         theModelIsStupidMessage += f"You cannot use the {json.dumps(previous_type)} action with the element id {json.dumps(previous_id)} because ids must be strings. "
                 
-                
-                if False: # not current_goal is None:
-                    messages.append({"role": "system", "content": f"The user provided the following end goal: {llm_instructions}."})
-                    messages.append({"role": "system", "content": f"Pursue your self-assigned sub goal or assign a new one: {current_goal}."})
+                if not current_goal is None:
+                    messages.append({"role": "system", "content": f"The user provided the following end instructions: {llm_instructions}"})
+                    messages.append({"role": "system", "content": f"Pursue your self-assigned sub-goal or assign a new one: {current_goal}."})
                     messages.append({"role": "system", "content": f"Previously executed interactions by goal: {json.dumps(interactions_by_goal)}."})
-                    # if all goals have been explored to some extent, remind the model to try to find new goals
-                    if all(map(lambda goal: interactions_by_goal.get(goal, 0) > 5, interactions_by_goal)):
-                        theModelIsStupidMessage += f"Remember that you can assign completely new high-level goals using the new_testing_goal argument. "
                     messages.append({"role": "system", "content": (
                         f"Start by describing the website supplied by the function call."
                         f" Give a short general description first then summarize the main elements on the website."
-                        f" Do not use HTML in your description. "
-                        f" Either stick to your current goal '{current_goal}' or formulate a new high level goal that should be executed."
-                        f" Take the necessary actions to complete it."
+                        f" Do not use HTML in your description."
+                        f" Then you may formulate a high level sub-goal to the user's instructions, that should be persued with the next couple of interactions."
+                        f" You should formulate a new sub-goal if the current one has been completed or seems to be unattainable."
+                        f" Give an action plan that explains how the goal should be reached."
+                        f" And finally, describe the interaction to emulate."
                     )})
+                    # if all goals have been explored to some extent, remind the model to try to find new goals
+                    if all(map(lambda goal: interactions_by_goal.get(goal, 0) > 5, interactions_by_goal)):
+                        theModelIsStupidMessage += f"Remember that you can assign completely new sub-goals using the new_testing_goal argument. "
                 else:
                     messages.append({"role": "system", "content": (
                         f"Start by describing the website supplied by the user."
                         f" Give a short general description first then summarize the main elements on the website."
                         f" Do not use HTML in your description."
-                        f" Then explain what should be achieved with the next action."
+                        f" Then formulate a high level sub-goal to the user's instructions, that should be persued with the next couple of interactions."
+                        f" Give an action plan that explains how the goal should be reached."
                         f" And finally, describe the interaction to emulate."
-                        #f" Then formulate a high level goal that should be executed and take the necessary actions to complete it."
                     )})
 
                 messages.append({"role": "system", "content": theModelIsStupidMessage})
