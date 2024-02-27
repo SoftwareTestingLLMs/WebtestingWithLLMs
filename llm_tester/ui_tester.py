@@ -389,10 +389,10 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                         #    "type": "string",
                         #    "description": "Assigns a new high level goal that needs to be followed in order to complete the users instructions. This goal should take multiple user interactions to complete. The assistant shall try to complete this goal in the next couple of interactions and then assign a new one.",
                         #},
-                        #"explanation": {
-                        #    "type": "string",
-                        #    "description": "Explain what should be achieved with the next action",
-                        #},
+                        "explanation": {
+                            "type": "string",
+                            "description": "Explanation of what should be achieved with the next action",
+                        },
                         "interaction": {
                             "anyOf": interactions,
                             "description": "The interaction to emulate",
@@ -401,7 +401,7 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                     "required": [
                         "page_description",
                         #"new_testing_goal",
-                        #"explanation"
+                        "explanation",
                         "interaction",
                     ]# if current_goal is None else ["page_description", "interaction", "explanation"],
                 }
@@ -448,6 +448,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                         f"Start by describing the website supplied by the user."
                         f" Give a short general description first then summarize the main elements on the website."
                         f" Do not use HTML in your description."
+                        f" Then explain what should be achieved with the next action."
+                        f" And finally, describe the interaction to emulate."
                         #f" Then formulate a high level goal that should be executed and take the necessary actions to complete it."
                     )})
 
