@@ -295,11 +295,11 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                             "arguments": json.dumps({
                                 "page_description": "The start page of a web site with multiple calculators for different purposes. There are buttons to navigate to the differet calculators and a button to switch the language of the web site. The current language is English.",
                                 "new_testing_goal": "Test the calculator for calculating the area of a circle in multiple languages.",
+                                "explanation": "First navigate to the calculator for the area of a circle. Then input a radius and calculate the area. Switch the language of the web site and repeat the process.",
                                 "interaction": {
                                     "interaction_type": "click",
                                     "element_id": "btn-area-circle",
                                 },
-                                "explanation": "Clicking the 'Circle Area' button to navigate to the calculator for calculating the area of a circle.",
                             }),
                         },
                     },
@@ -308,18 +308,20 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                         "name": "emulate_interaction",
                         "content": "omitted"
                     },
+                    {"role": "system", "content": f"Pursue your self-assigned sub-goal or assign a new one: Test the calculator for calculating the area of a circle in multiple languages.."},
+                    {"role": "system", "content": "Previously executed interactions by goal: {\"Test the calculator for calculating the area of a circle in multiple languages.\": 1 }."},
                     {
                         "role": "assistant",
                         "function_call": {
                             "name": "emulate_interaction",
                             "arguments": json.dumps({
                                 "page_description": "A page with a calculator for calculating the area of a circle. There is an empty text field to enter the radius of the circle and a button labeled 'Calculate'. The current language is English.",
+                                "explanation": "Enter the radius in the text field and click the 'Calculate' button. Then switch the language of the web site and repeat the process.",
                                 "interaction": {
                                     "interaction_type": "send_keys",
                                     "element_id": "radius",
                                     "keys": "5",
                                 },
-                                "explanation": "Entering the radius of the circle into the text field.",
                             }),
                         },
                     },
@@ -329,17 +331,103 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                         "function_call": {
                             "name": "emulate_interaction",
                             "arguments": json.dumps({
-                                "page_description": "An article on a news website. The main part of the article is hidden by a login paywall. The navigation bar has links to different news categories.",
+                                "page_description": "An article on a news website. The main part of the article is hidden by a login prompt. The navigation bar has links to different news categories.",
                                 "new_testing_goal": "Subscribe to the comment section of the article.",
+                                "explanation": "To subscribe to a comment sections the user has to be logged in. First login to the website. Then navigate to an article and subscribe to the comment section.",
                                 "interaction": {
                                     "interaction_type": "send_keys",
                                     "element_id": "user-id",
                                     "keys": "john.doe@fictional.tld",
                                 },
-                                "explanation": "Entering the email address into the login field, because the user is not logged in.",
                             }),
                         },
-                    }
+                    },
+                    {
+                        "role": "function",
+                        "name": "emulate_interaction",
+                        "content": "omitted"
+                    },
+                    {"role": "system", "content": f"Pursue your self-assigned sub-goal or assign a new one: Subscribe to the comment section of the article.."},
+                    {"role": "system", "content": "Previously executed interactions by goal: {\"Subscribe to the comment section of the article.\": 1 }."},
+                    {
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "emulate_interaction",
+                            "arguments": json.dumps({
+                                "page_description": "An article on a news website. The main part of the article is hidden by a login prompt. The navigation bar has links to different news categories.",
+                                "explanation": "Complete the login process. Then subscribe to the comment section.",
+                                "interaction": {
+                                    "interaction_type": "send_keys",
+                                    "element_id": "user-password",
+                                    "keys": "verysecurepassword",
+                                },
+                            }),
+                        },
+                    },
+                    {
+                        "role": "function",
+                        "name": "emulate_interaction",
+                        "content": "omitted"
+                    },
+                    {"role": "system", "content": f"Pursue your self-assigned sub-goal or assign a new one: Subscribe to the comment section of the article.."},
+                    {"role": "system", "content": "Previously executed interactions by goal: {\"Subscribe to the comment section of the article.\": 2 }."},
+                    {
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "emulate_interaction",
+                            "arguments": json.dumps({
+                                "page_description": "An article on a news website. The main part of the article is hidden by a login prompt. The navigation bar has links to different news categories.",
+                                "explanation": "Complete the login process. Then subscribe to the comment section.",
+                                "interaction": {
+                                    "interaction_type": "click",
+                                    "element_id": "login-btn",
+                                },
+                            }),
+                        },
+                    },
+                    {
+                        "role": "function",
+                        "name": "emulate_interaction",
+                        "content": "omitted"
+                    },
+                    {"role": "system", "content": f"Pursue your self-assigned sub-goal or assign a new one: Subscribe to the comment section of the article.."},
+                    {"role": "system", "content": "Previously executed interactions by goal: {\"Subscribe to the comment section of the article.\": 3 }."},
+                    {
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "emulate_interaction",
+                            "arguments": json.dumps({
+                                "page_description": "An article on a news website. The navigation bar has links to different news categories.",
+                                "explanation": "Subscribe to the article by clicking on the subscribe button.",
+                                "interaction": {
+                                    "interaction_type": "click",
+                                    "element_id": "subscribe-btn",
+                                },
+                            }),
+                        },
+                    },
+                    {
+                        "role": "function",
+                        "name": "emulate_interaction",
+                        "content": "omitted"
+                    },
+                    {"role": "system", "content": f"Pursue your self-assigned sub-goal or assign a new one: Subscribe to the comment section of the article.."},
+                    {"role": "system", "content": "Previously executed interactions by goal: {\"Subscribe to the comment section of the article.\": 4 }."},
+                    {
+                        "role": "assistant",
+                        "function_call": {
+                            "name": "emulate_interaction",
+                            "arguments": json.dumps({
+                                "page_description": "An article on a news website. There is a popup message saying success. The navigation bar has links to different news categories.",
+                                "new_testing_goal": "Test if it's possible to subscribe to the article multiple times and if it's possible to unsubscribe.",
+                                "explanation": "Close the success message and try to subscribe to the article again. Then try to unsubscribe from the article.",
+                                "interaction": {
+                                    "interaction_type": "click",
+                                    "element_id": "success-close",
+                                },
+                            }),
+                        },
+                    },
                 ]]
                 prompt = (
                     f"{llm_instructions}"
@@ -347,8 +435,8 @@ def run_ui_test(url, delay, interactions, load_wait_time, test_type, output_dir,
                 )# + "" if llm_instructions is None else " " + llm_instructions
                 messages = [
                     { "role": "system", "content": prompt_system },
-                    #{ "role": "system", "content": f"Here are some examples how the 'emulate_interaction' function should be used." },
-                    #*flatten(map(lambda example: [{ "role": "user", "content": "Please test my website: omitted"}, *example], few_shot_examples)),
+                    { "role": "system", "content": f"Here are some examples how the 'emulate_interaction' function should be used." },
+                    *flatten(map(lambda example: [{ "role": "user", "content": "Please test my website: omitted"}, *example], few_shot_examples)),
                     { "role": "user", "content": prompt },
                     *past_messages,
                 ]
