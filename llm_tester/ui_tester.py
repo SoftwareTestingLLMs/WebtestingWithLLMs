@@ -60,22 +60,43 @@ class ArgDescriptor:
         self.randomizeValue = randomizeValue
 
 class ActionType:
-    def __init__(self, name, description, action, **kwargs):
+    def __init__(self, name, description, action, factory, **kwargs):
         self.name = name
         self.action = action
         self.description = description
         self.args = kwargs["args"] if "args" in kwargs else []
         self.silent_exceptions = kwargs["silent_exceptions"] if "silent_exceptions" in kwargs else []
         self.adjective = kwargs["adjective"] if "adjective" in kwargs else name + "able"
+        self.factory = factory
 
 def random_string():
     return ''.join(random.choices(string.ascii_letters + string.digits + ' @.', k = random.randint(3, 9)))
 
+def create_click_actions(driver):
+    clickables = driver.find_elements(By.XPATH, "//button") + driver.find_elements(By.XPATH, "//a") + driver.find_elements(By.CSS_SELECTOR, ".on-click")
+    clickable_dict = dict()
+    for element in clickables:
+        id = element.get_attribute("id")
+        if id not in clickable_dict and is_clickable(element, driver):
+            clickable_dict[id] = element
+    clickables = list(clickable_dict.values())
+    return map(lambda b: Action(b, ActionTypes.CLICK.value), clickables)
+
+def find_text_fields(driver):
+    return driver.find_elements(By.XPATH, "//input[@type='text']")
+
+def create_send_keys_actions(driver):
+    text_fields = find_text_fields(driver)
+    return map(lambda e: Action(e, ActionTypes.SEND_KEYS.value), text_fields)
+
+def create_clear_actions(driver):
+    text_fields = find_text_fields(driver)
+    return map(lambda e: Action(e, ActionTypes.CLEAR.value), filter(lambda t: t.get_attribute("value") != "", text_fields))
+
 class ActionTypes(Enum):
-    CLICK = ActionType('click', 'clicks on a html element', lambda action, driver, args: action.element.click(), silent_exceptions=[ElementClickInterceptedException])
-    HOVER = ActionType('hover', 'moves the mouse over an html element', lambda action, driver, args: ActionChains(driver).move_to_element(action.element).perform())
-    SEND_KEYS = ActionType('send_keys', 'sends keystrokes to an html element', lambda action, driver, args: action.element.send_keys(args[0]), args=[ArgDescriptor('keys', 'the keys to be sent to the input element', random_string)], adjective='writable')
-    CLEAR = ActionType('clear', 'resets the contents of an html element', lambda action, driver, args: action.element.clear())
+    CLICK = ActionType('click', 'clicks on a html element', lambda action, driver, args: action.element.click(), create_click_actions, silent_exceptions=[ElementClickInterceptedException])
+    SEND_KEYS = ActionType('send_keys', 'sends keystrokes to an html element', lambda action, driver, args: action.element.send_keys(args[0]), create_send_keys_actions, args=[ArgDescriptor('keys', 'the keys to be sent to the input element', random_string)], adjective='writable')
+    CLEAR = ActionType('clear', 'resets the contents of an html element', lambda action, driver, args: action.element.clear(), create_clear_actions)
 
 class Action:
 
@@ -105,7 +126,6 @@ class Action:
         return self
 
 def extract_actions(driver):
-    actions = []
     hidden_by = dict()
     def is_on_top(e):
         id = e.get_attribute("id")
@@ -114,23 +134,12 @@ def extract_actions(driver):
             hidden_by[id] = topmost
             return False
         return True
-    clickables = driver.find_elements(By.XPATH, "//button") + driver.find_elements(By.XPATH, "//a") + driver.find_elements(By.CSS_SELECTOR, ".on-click")
-    clickable_dict = dict()
-    for element in clickables:
-        id = element.get_attribute("id")
-        if id not in clickable_dict and is_clickable(element, driver):
-            clickable_dict[id] = element
-    clickables = list(clickable_dict.values())
-    actions += map(lambda b: Action(b, ActionTypes.CLICK.value), filter(is_on_top, clickables))
-
-    ''' Hover no longer needed
-    mouse_overs = driver.find_elements(By.CSS_SELECTOR, ".mouse-over")
-    actions += map(lambda e: Action(e, ActionTypes.HOVER.value), filter(is_on_top, mouse_overs))
-    '''
-
-    text_fields = list(filter(is_on_top, driver.find_elements(By.XPATH, "//input[@type='text']")))
-    actions += map(lambda e: Action(e, ActionTypes.SEND_KEYS.value), text_fields)
-    actions += map(lambda e: Action(e, ActionTypes.CLEAR.value), filter(lambda t: t.get_attribute("value") != "", text_fields))
+    
+    actions = []
+    for action_type in ActionTypes:
+        actions.extend(action_type.value.factory(driver))
+    
+    actions = list(filter(lambda a: is_on_top(a.element), actions))
 
     return actions, hidden_by
 
